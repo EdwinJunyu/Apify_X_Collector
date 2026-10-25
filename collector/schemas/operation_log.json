@@ -1,0 +1,38 @@
+{
+  "type": "object",
+  "properties": {
+    "operation": {
+      "type": "string",
+      "maxLength": 512,
+      "minLength": 1
+    },
+    "outcome": {
+      "type": "string",
+      "enum": [
+        "SUCCESS",
+        "FAILED"
+      ]
+    },
+    "error_code": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "maxLength": 512
+    },
+    "at": {
+      "type": "string",
+      "format": "date-time"
+    }
+  },
+  "required": [
+    "operation",
+    "outcome",
+    "error_code",
+    "at"
+  ],
+  "additionalProperties": false,
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:acg:collector:operation_log:1.0",
+  "title": "operation_log Schema 1.0"
+}
