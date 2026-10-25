@@ -1,0 +1,214 @@
+{
+  "type": "object",
+  "properties": {
+    "platform": {
+      "type": "string",
+      "const": "X"
+    },
+    "post_id": {
+      "type": "string",
+      "maxLength": 512,
+      "minLength": 1,
+      "pattern": "^[0-9]{1,32}$"
+    },
+    "account_id": {
+      "type": "string",
+      "maxLength": 512,
+      "minLength": 1
+    },
+    "author_external_id": {
+      "type": "string",
+      "maxLength": 512,
+      "minLength": 1,
+      "pattern": "^[0-9]{1,32}$"
+    },
+    "author_handle_at_observation": {
+      "type": "string",
+      "maxLength": 512,
+      "minLength": 1,
+      "pattern": "^[A-Za-z0-9_]{1,15}$"
+    },
+    "post_type": {
+      "type": "string",
+      "enum": [
+        "ORIGINAL",
+        "QUOTE",
+        "REPLY",
+        "REPOST",
+        "UNKNOWN"
+      ]
+    },
+    "quoted_post_id": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "maxLength": 512,
+      "pattern": "^[0-9]{1,32}$"
+    },
+    "in_reply_to_id": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "maxLength": 512,
+      "pattern": "^[0-9]{1,32}$"
+    },
+    "reposted_post_id": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "maxLength": 512,
+      "pattern": "^[0-9]{1,32}$"
+    },
+    "published_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "first_seen_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "observed_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "indexed_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "source_url": {
+      "type": "string",
+      "maxLength": 2048,
+      "minLength": 1
+    },
+    "language": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "maxLength": 512
+    },
+    "text": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "maxLength": 100000
+    },
+    "media_refs": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "maxLength": 512,
+        "minLength": 1
+      },
+      "maxItems": 1000
+    },
+    "metrics": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "integer",
+        "minimum": 0
+      }
+    },
+    "hashtags": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "maxLength": 512,
+        "minLength": 1
+      },
+      "maxItems": 1000
+    },
+    "mentions": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "maxLength": 512,
+        "minLength": 1
+      },
+      "maxItems": 1000
+    },
+    "version_number": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "content_hash": {
+      "type": "string",
+      "maxLength": 512,
+      "minLength": 1,
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "is_current": {
+      "const": true,
+      "type": "boolean"
+    },
+    "content_rating": {
+      "type": "string",
+      "enum": [
+        "SFW",
+        "R18",
+        "UNKNOWN"
+      ]
+    },
+    "review_status": {
+      "const": "STAGING",
+      "type": "string"
+    },
+    "rights_status": {
+      "const": "PERMITTED",
+      "type": "string"
+    },
+    "coverage_evidence_id": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "maxLength": 512
+    },
+    "raw_ref": {
+      "type": "null"
+    },
+    "deletion_state": {
+      "const": "ACTIVE",
+      "type": "string"
+    }
+  },
+  "required": [
+    "platform",
+    "post_id",
+    "account_id",
+    "author_external_id",
+    "author_handle_at_observation",
+    "post_type",
+    "quoted_post_id",
+    "in_reply_to_id",
+    "reposted_post_id",
+    "published_at",
+    "first_seen_at",
+    "observed_at",
+    "indexed_at",
+    "source_url",
+    "language",
+    "text",
+    "media_refs",
+    "metrics",
+    "hashtags",
+    "mentions",
+    "version_number",
+    "content_hash",
+    "is_current",
+    "content_rating",
+    "review_status",
+    "rights_status",
+    "coverage_evidence_id",
+    "raw_ref",
+    "deletion_state"
+  ],
+  "additionalProperties": false,
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:acg:collector:post:1.0",
+  "title": "post Schema 1.0"
+}
