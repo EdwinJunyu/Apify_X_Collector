@@ -1,0 +1,10 @@
+.env
+.env.*
+!.env.example
+data/
+output/
+__pycache__/
+*.pyc
+.venv/
+*.sqlite3
+*.zip
