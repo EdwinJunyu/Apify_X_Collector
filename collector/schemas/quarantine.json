@@ -1,0 +1,48 @@
+{
+  "type": "object",
+  "properties": {
+    "reason": {
+      "type": "string",
+      "enum": [
+        "INVALID_POST_OR_TOMBSTONED",
+        "TEXT_RETENTION_DENIED",
+        "TOMBSTONED",
+        "POST_IDENTITY_CONFLICT",
+        "FIELD_TYPE",
+        "FIELD_CONST",
+        "FIELD_ENUM",
+        "MISSING_FIELD",
+        "UNKNOWN_FIELD",
+        "ARRAY_LIMIT",
+        "STRING_LIMIT",
+        "FIELD_PATTERN",
+        "NUMBER_LIMIT",
+        "UTC_TIMESTAMP_REQUIRED",
+        "INVALID_DATE",
+        "SOURCE_URL_MISMATCH",
+        "MISSING_RELATION_ID",
+        "POST_OBJECT_REQUIRED",
+        "AUTHOR_MISMATCH"
+      ]
+    },
+    "item_index": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "quarantine_id": {
+      "type": "string",
+      "maxLength": 512,
+      "minLength": 1,
+      "pattern": "^[a-f0-9]{32}$"
+    }
+  },
+  "required": [
+    "reason",
+    "item_index",
+    "quarantine_id"
+  ],
+  "additionalProperties": false,
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:acg:collector:quarantine:1.0",
+  "title": "quarantine Schema 1.0"
+}
