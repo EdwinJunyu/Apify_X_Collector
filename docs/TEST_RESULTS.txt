@@ -7,37 +7,28 @@ test_candidates_can_have_unknown_external_id (test_contracts.ContractTests.test_
 test_frozen_defaults (test_contracts.ContractTests.test_frozen_defaults) ... ok
 test_no_schema_silently_allows_new_fields (test_contracts.ContractTests.test_no_schema_silently_allows_new_fields) ... ok
 test_synthetic_fixtures_match_contracts (test_contracts.ContractTests.test_synthetic_fixtures_match_contracts) ... ok
-test_GUI_exit_keeps_worker_running (test_desktop.ProcessTests.test_GUI_exit_keeps_worker_running) ... ok
-test_bad_token_denied (test_desktop.ProcessTests.test_bad_token_denied) ... ok
-test_duplicate_intent_after_restart (test_desktop.ProcessTests.test_duplicate_intent_after_restart) ... ok
-test_native_GUI_sync_and_review_full_flow (test_desktop.ProcessTests.test_native_GUI_sync_and_review_full_flow) ... This plugin does not support raise()
-This plugin does not support raise()
-This plugin does not support propagateSizeHints()
-ok
-test_real_IPC_and_shutdown (test_desktop.ProcessTests.test_real_IPC_and_shutdown) ... ERROR
-test_form_preserves_errors_and_masks_secret (test_desktop.QtWidgetTests.test_form_preserves_errors_and_masks_secret) ... This plugin does not support propagateSizeHints()
-This plugin does not support propagateSizeHints()
-ok
-test_native_combo_popup (test_desktop.QtWidgetTests.test_native_combo_popup) ... This plugin does not support propagateSizeHints()
-This plugin does not support raise()
-This plugin does not support grabbing the keyboard
-ok
-test_nine_pages_navigation (test_desktop.QtWidgetTests.test_nine_pages_navigation) ... ok
-test_table_selection_sort_clear (test_desktop.QtWidgetTests.test_table_selection_sort_clear) ... This plugin does not support propagateSizeHints()
-ok
-test_theme_tokens (test_desktop.QtWidgetTests.test_theme_tokens) ... ok
-test_account_conflict_and_stable_id (test_desktop.ServiceTests.test_account_conflict_and_stable_id) ... ok
-test_composed_filter_and_paging (test_desktop.ServiceTests.test_composed_filter_and_paging) ... ok
-test_deleted_review_notes_purged (test_desktop.ServiceTests.test_deleted_review_notes_purged) ... ok
-test_limits_and_scheduler_disabled (test_desktop.ServiceTests.test_limits_and_scheduler_disabled) ... ok
-test_live_requires_confirmation (test_desktop.ServiceTests.test_live_requires_confirmation) ... ok
-test_pause_does_not_stop_existing_run (test_desktop.ServiceTests.test_pause_does_not_stop_existing_run) ... ok
-test_policy_bundle_version_keeps_posts (test_desktop.ServiceTests.test_policy_bundle_version_keeps_posts) ... ok
-test_preview_rechecks_revoked_rights (test_desktop.ServiceTests.test_preview_rechecks_revoked_rights) ... ok
-test_review_stages_and_redistribute (test_desktop.ServiceTests.test_review_stages_and_redistribute) ... ok
-test_revoke_retain_requires_confirmation (test_desktop.ServiceTests.test_revoke_retain_requires_confirmation) ... ok
-test_start_idempotency_survives_restart (test_desktop.ServiceTests.test_start_idempotency_survives_restart) ... ok
-test_token_excluded_from_logs_snapshot (test_desktop.ServiceTests.test_token_excluded_from_logs_snapshot) ... ok
+test_GUI_exit_keeps_worker_running (test_desktop.ProcessTests.test_GUI_exit_keeps_worker_running) ... skipped 'Install requirements-desktop.txt'
+test_bad_token_denied (test_desktop.ProcessTests.test_bad_token_denied) ... skipped 'Install requirements-desktop.txt'
+test_duplicate_intent_after_restart (test_desktop.ProcessTests.test_duplicate_intent_after_restart) ... skipped 'Install requirements-desktop.txt'
+test_native_GUI_sync_and_review_full_flow (test_desktop.ProcessTests.test_native_GUI_sync_and_review_full_flow) ... skipped 'Install requirements-desktop.txt'
+test_real_IPC_and_shutdown (test_desktop.ProcessTests.test_real_IPC_and_shutdown) ... skipped 'Install requirements-desktop.txt'
+test_form_preserves_errors_and_masks_secret (test_desktop.QtWidgetTests.test_form_preserves_errors_and_masks_secret) ... skipped 'Install requirements-desktop.txt'
+test_native_combo_popup (test_desktop.QtWidgetTests.test_native_combo_popup) ... skipped 'Install requirements-desktop.txt'
+test_nine_pages_navigation (test_desktop.QtWidgetTests.test_nine_pages_navigation) ... skipped 'Install requirements-desktop.txt'
+test_table_selection_sort_clear (test_desktop.QtWidgetTests.test_table_selection_sort_clear) ... skipped 'Install requirements-desktop.txt'
+test_theme_tokens (test_desktop.QtWidgetTests.test_theme_tokens) ... skipped 'Install requirements-desktop.txt'
+test_account_conflict_and_stable_id (test_desktop.ServiceTests.test_account_conflict_and_stable_id) ... skipped 'Install requirements-desktop.txt'
+test_composed_filter_and_paging (test_desktop.ServiceTests.test_composed_filter_and_paging) ... skipped 'Install requirements-desktop.txt'
+test_deleted_review_notes_purged (test_desktop.ServiceTests.test_deleted_review_notes_purged) ... skipped 'Install requirements-desktop.txt'
+test_limits_and_scheduler_disabled (test_desktop.ServiceTests.test_limits_and_scheduler_disabled) ... skipped 'Install requirements-desktop.txt'
+test_live_requires_confirmation (test_desktop.ServiceTests.test_live_requires_confirmation) ... skipped 'Install requirements-desktop.txt'
+test_pause_does_not_stop_existing_run (test_desktop.ServiceTests.test_pause_does_not_stop_existing_run) ... skipped 'Install requirements-desktop.txt'
+test_policy_bundle_version_keeps_posts (test_desktop.ServiceTests.test_policy_bundle_version_keeps_posts) ... skipped 'Install requirements-desktop.txt'
+test_preview_rechecks_revoked_rights (test_desktop.ServiceTests.test_preview_rechecks_revoked_rights) ... skipped 'Install requirements-desktop.txt'
+test_review_stages_and_redistribute (test_desktop.ServiceTests.test_review_stages_and_redistribute) ... skipped 'Install requirements-desktop.txt'
+test_revoke_retain_requires_confirmation (test_desktop.ServiceTests.test_revoke_retain_requires_confirmation) ... skipped 'Install requirements-desktop.txt'
+test_start_idempotency_survives_restart (test_desktop.ServiceTests.test_start_idempotency_survives_restart) ... skipped 'Install requirements-desktop.txt'
+test_token_excluded_from_logs_snapshot (test_desktop.ServiceTests.test_token_excluded_from_logs_snapshot) ... skipped 'Install requirements-desktop.txt'
 test_UNKNOWN_R18_and_restricted_block_no_request (test_media.MediaTests.test_UNKNOWN_R18_and_restricted_block_no_request) ... ok
 test_compaction_crash_does_not_resurrect (test_media.MediaTests.test_compaction_crash_does_not_resurrect) ... ok
 test_disk_limits_and_free_space (test_media.MediaTests.test_disk_limits_and_free_space) ... ok
@@ -157,24 +148,10 @@ test_twenty_accounts_thirteenth_failure_keeps_others (test_sync.SyncTests.test_t
 test_unknown_POST_never_retried_across_restart (test_sync.SyncTests.test_unknown_POST_never_retried_across_restart) ... ok
 test_unknown_bill_blocks_until_evidence_finalized (test_sync.SyncTests.test_unknown_bill_blocks_until_evidence_finalized) ... ok
 
-======================================================================
-ERROR: test_real_IPC_and_shutdown (test_desktop.ProcessTests.test_real_IPC_and_shutdown)
 ----------------------------------------------------------------------
-Traceback (most recent call last):
-  File "/workspace/scratch/59e6d31639fe/acg_apify_x_collector/tests/test_desktop.py", line 152, in test_real_IPC_and_shutdown
-    self.client.call('stop_worker');self.assertEqual(self.proc.wait(timeout=5),0)
-                                                     ^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/lib/python3.12/subprocess.py", line 1264, in wait
-    return self._wait(timeout=timeout)
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/lib/python3.12/subprocess.py", line 2045, in _wait
-    raise TimeoutExpired(self.args, timeout)
-subprocess.TimeoutExpired: Command '['/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin/python3', '/workspace/scratch/59e6d31639fe/acg_apify_x_collector/worker.py', '--root', '/tmp/tmph_c6ztzb/data', '--private-base', '/tmp/tmph_c6ztzb/private']' timed out after 5 seconds
+Ran 144 tests in 11.635s
 
-----------------------------------------------------------------------
-Ran 144 tests in 19.675s
-
-FAILED (errors=1)
+OK (skipped=22)
 
 Suite: legacy/apify_x_probe_v0_1/tests
 
@@ -186,6 +163,6 @@ test_retweets_rejected (test_probe.TestApifyXProbe.test_retweets_rejected) ... o
 test_wrong_author_rejected (test_probe.TestApifyXProbe.test_wrong_author_rejected) ... ok
 
 ----------------------------------------------------------------------
-Ran 6 tests in 0.003s
+Ran 6 tests in 0.006s
 
 OK
