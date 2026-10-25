@@ -1,0 +1,237 @@
+{
+  "type": "object",
+  "properties": {
+    "job_id": {
+      "type": "string",
+      "maxLength": 512,
+      "minLength": 1,
+      "pattern": "^[a-f0-9]{32}$"
+    },
+    "account_id": {
+      "type": "string",
+      "maxLength": 512,
+      "minLength": 1
+    },
+    "source_id": {
+      "type": "string",
+      "maxLength": 512,
+      "minLength": 1
+    },
+    "context_hash": {
+      "type": "string",
+      "maxLength": 512,
+      "minLength": 1,
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "account_hash": {
+      "type": "string",
+      "maxLength": 512,
+      "minLength": 1,
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "actor_id": {
+      "type": "string",
+      "maxLength": 512,
+      "minLength": 1
+    },
+    "actor_build": {
+      "type": "string",
+      "maxLength": 512,
+      "minLength": 1
+    },
+    "input_fingerprint": {
+      "type": "string",
+      "maxLength": 512,
+      "minLength": 1,
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "window_start": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "window_end": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "previous_cursor": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "maxLength": 512,
+      "pattern": "^[0-9]{1,32}$"
+    },
+    "run_id": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "maxLength": 512
+    },
+    "dataset_id": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "maxLength": 512
+    },
+    "state": {
+      "type": "string",
+      "enum": [
+        "RUN_INTENT",
+        "REMOTE_OUTCOME_UNKNOWN",
+        "RUNNING",
+        "READING",
+        "FAILED",
+        "NEEDS_REVIEW",
+        "DONE"
+      ]
+    },
+    "reserved_usd": {
+      "type": "string",
+      "maxLength": 512,
+      "minLength": 1,
+      "pattern": "^[0-9]+\\.[0-9]{2,6}$"
+    },
+    "observed_usd": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "maxLength": 512
+    },
+    "finalized_usd": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "maxLength": 512
+    },
+    "offset": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "total": {
+      "type": [
+        "integer",
+        "null"
+      ],
+      "minimum": 0
+    },
+    "candidate_cursor": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "maxLength": 512,
+      "pattern": "^[0-9]{1,32}$"
+    },
+    "rejected": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "accepted": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "oldest": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "format": "date-time"
+    },
+    "newest": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "format": "date-time"
+    },
+    "pages": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "coverage_status": {
+      "type": "string",
+      "enum": [
+        "UNKNOWN",
+        "PARTIAL"
+      ]
+    },
+    "coverage_reason": {
+      "type": "string",
+      "maxLength": 512,
+      "minLength": 1
+    },
+    "error_code": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "maxLength": 512
+    },
+    "updated_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "run_evidence_uri": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "maxLength": 512
+    },
+    "bill_evidence_uri": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "maxLength": 512
+    },
+    "command_id": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "maxLength": 512
+    }
+  },
+  "required": [
+    "job_id",
+    "account_id",
+    "source_id",
+    "context_hash",
+    "account_hash",
+    "actor_id",
+    "actor_build",
+    "input_fingerprint",
+    "window_start",
+    "window_end",
+    "previous_cursor",
+    "run_id",
+    "dataset_id",
+    "state",
+    "reserved_usd",
+    "observed_usd",
+    "finalized_usd",
+    "offset",
+    "total",
+    "candidate_cursor",
+    "rejected",
+    "accepted",
+    "oldest",
+    "newest",
+    "pages",
+    "coverage_status",
+    "coverage_reason",
+    "error_code",
+    "updated_at",
+    "run_evidence_uri",
+    "bill_evidence_uri"
+  ],
+  "additionalProperties": false,
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:acg:collector:job:1.0",
+  "title": "job Schema 1.0"
+}
