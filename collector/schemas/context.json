@@ -1,0 +1,42 @@
+{
+  "type": "object",
+  "properties": {
+    "source_id": {
+      "type": "string",
+      "maxLength": 512,
+      "minLength": 1,
+      "pattern": "^x:[0-9]{1,32}$"
+    },
+    "policy_id": {
+      "type": "string",
+      "maxLength": 512,
+      "minLength": 1
+    },
+    "policy_version": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "purpose": {
+      "type": "string",
+      "maxLength": 512,
+      "minLength": 1
+    },
+    "actor_run_id": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "maxLength": 512
+    }
+  },
+  "required": [
+    "source_id",
+    "policy_id",
+    "policy_version",
+    "purpose"
+  ],
+  "additionalProperties": false,
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:acg:collector:context:1.0",
+  "title": "context Schema 1.0"
+}
