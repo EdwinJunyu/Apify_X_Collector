@@ -1,0 +1,74 @@
+{
+  "type": "object",
+  "properties": {
+    "account_id": {
+      "type": "string",
+      "maxLength": 512,
+      "minLength": 1
+    },
+    "previous_cursor": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "maxLength": 512,
+      "pattern": "^[0-9]{1,32}$"
+    },
+    "requested_window": {
+      "type": "string",
+      "maxLength": 512,
+      "minLength": 1
+    },
+    "overlap_start": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "candidate_cursor": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "maxLength": 512,
+      "pattern": "^[0-9]{1,32}$"
+    },
+    "committed_cursor": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "maxLength": 512,
+      "pattern": "^[0-9]{1,32}$"
+    },
+    "coverage_status": {
+      "type": "string",
+      "enum": [
+        "PARTIAL",
+        "UNKNOWN"
+      ]
+    },
+    "coverage_reason": {
+      "type": "string",
+      "maxLength": 512,
+      "minLength": 1
+    },
+    "last_success_at": {
+      "type": "string",
+      "format": "date-time"
+    }
+  },
+  "required": [
+    "account_id",
+    "previous_cursor",
+    "requested_window",
+    "overlap_start",
+    "candidate_cursor",
+    "committed_cursor",
+    "coverage_status",
+    "coverage_reason",
+    "last_success_at"
+  ],
+  "additionalProperties": false,
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:acg:collector:checkpoint:1.0",
+  "title": "checkpoint Schema 1.0"
+}
