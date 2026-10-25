@@ -1,0 +1,61 @@
+{
+  "type": "object",
+  "properties": {
+    "post_id": {
+      "type": "string",
+      "maxLength": 512,
+      "minLength": 1,
+      "pattern": "^[0-9]{1,32}$"
+    },
+    "reviewer_id": {
+      "type": "string",
+      "maxLength": 512,
+      "minLength": 1
+    },
+    "action": {
+      "type": "string",
+      "enum": [
+        "REVIEW",
+        "REJECT",
+        "MARK_PUBLISHABLE"
+      ]
+    },
+    "category": {
+      "type": "string",
+      "enum": [
+        "SFW",
+        "R18",
+        "UNKNOWN"
+      ]
+    },
+    "source_evidence": {
+      "type": "string",
+      "maxLength": 512,
+      "minLength": 1
+    },
+    "notes": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "maxLength": 512
+    },
+    "reviewed_at": {
+      "type": "string",
+      "format": "date-time"
+    }
+  },
+  "required": [
+    "post_id",
+    "reviewer_id",
+    "action",
+    "category",
+    "source_evidence",
+    "notes",
+    "reviewed_at"
+  ],
+  "additionalProperties": false,
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:acg:collector:review:1.0",
+  "title": "review Schema 1.0"
+}
