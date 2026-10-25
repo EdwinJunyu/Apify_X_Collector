@@ -1,0 +1,8 @@
+{
+  "platform": "Linux",
+  "version": "0.0.8",
+  "hash_locked_dependencies_installed": true,
+  "qt_import_after_venv_move": "PASS",
+  "code_pointer_activation": "PASS",
+  "windows_installer": "NOT_RUN"
+}
