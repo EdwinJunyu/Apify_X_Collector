@@ -1,0 +1,39 @@
+{
+  "schema_version": "1.0",
+  "assessment": "M2–M3 offline acceptance; current live Actor build remains unverified",
+  "actors": [
+    {
+      "actor_id": "offline-synthetic",
+      "implementation": "FakeTransport + StandardFixtureAdapter",
+      "build": "fixture-1.0",
+      "network_enabled": false,
+      "price_usd": "0.00",
+      "post_mapping": "StandardPost fixture (not an Actor response)",
+      "since_id": "UNSUPPORTED",
+      "pagination": "SUPPORTED_MOCK_ONLY",
+      "coverage_30_days": "UNKNOWN",
+      "media_download": "UNSUPPORTED"
+    },
+    {
+      "actor_id": "scrapesage/twitter-scraper",
+      "implementation": "ScrapeSageAdapter + ApifyTransport; live gate disabled pending review",
+      "build": null,
+      "network_enabled": false,
+      "price_usd": null,
+      "post_mapping": "UNKNOWN; verify current response before M2 enablement",
+      "since_id": "UNKNOWN",
+      "pagination": "UNKNOWN",
+      "coverage_30_days": "UNKNOWN",
+      "media_download": "UNKNOWN"
+    },
+    {
+      "actor_id": null,
+      "implementation": "backup Actor not selected; interface only",
+      "network_enabled": false,
+      "since_id": "UNKNOWN",
+      "pagination": "UNKNOWN",
+      "coverage_30_days": "UNKNOWN",
+      "media_download": "UNKNOWN"
+    }
+  ]
+}
