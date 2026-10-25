@@ -1,0 +1,37 @@
+{
+  "type": "object",
+  "properties": {
+    "stage": {
+      "type": "integer",
+      "enum": [
+        20,
+        50,
+        150
+      ]
+    },
+    "reviewer": {
+      "type": "string",
+      "maxLength": 512,
+      "minLength": 1
+    },
+    "evidence_uri": {
+      "type": "string",
+      "maxLength": 512,
+      "minLength": 1
+    },
+    "approved_at": {
+      "type": "string",
+      "format": "date-time"
+    }
+  },
+  "required": [
+    "stage",
+    "reviewer",
+    "evidence_uri",
+    "approved_at"
+  ],
+  "additionalProperties": false,
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:acg:collector:scale_approval:1.0",
+  "title": "scale_approval Schema 1.0"
+}
