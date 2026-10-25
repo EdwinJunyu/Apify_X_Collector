@@ -1,0 +1,112 @@
+{
+  "type": "object",
+  "properties": {
+    "media_id": {
+      "type": "string",
+      "maxLength": 512,
+      "minLength": 1
+    },
+    "post_id": {
+      "type": "string",
+      "maxLength": 512,
+      "minLength": 1,
+      "pattern": "^[0-9]{1,32}$"
+    },
+    "media_kind": {
+      "type": "string",
+      "enum": [
+        "IMAGE",
+        "VIDEO",
+        "UNKNOWN"
+      ]
+    },
+    "source_url": {
+      "type": "string",
+      "maxLength": 512,
+      "minLength": 1
+    },
+    "rights_status": {
+      "type": "string",
+      "enum": [
+        "PERMITTED",
+        "DENIED",
+        "UNKNOWN",
+        "REVOKED"
+      ]
+    },
+    "requested_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "download_state": {
+      "type": "string",
+      "enum": [
+        "QUEUED",
+        "DOWNLOADED",
+        "FAILED",
+        "BLOCKED"
+      ]
+    },
+    "sha256": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "maxLength": 512,
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "mime_detected": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "maxLength": 512
+    },
+    "file_size": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "local_path": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "maxLength": 512
+    },
+    "error_code": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "maxLength": 512
+    },
+    "retry_count": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "last_checked_at": {
+      "type": "string",
+      "format": "date-time"
+    }
+  },
+  "required": [
+    "media_id",
+    "post_id",
+    "media_kind",
+    "source_url",
+    "rights_status",
+    "requested_at",
+    "download_state",
+    "sha256",
+    "mime_detected",
+    "file_size",
+    "local_path",
+    "error_code",
+    "retry_count",
+    "last_checked_at"
+  ],
+  "additionalProperties": false,
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:acg:collector:media:1.0",
+  "title": "media Schema 1.0"
+}
