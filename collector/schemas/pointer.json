@@ -1,0 +1,30 @@
+{
+  "type": "object",
+  "properties": {
+    "schema_version": {
+      "type": "string",
+      "const": "1.0"
+    },
+    "commit_id": {
+      "type": "string",
+      "maxLength": 512,
+      "minLength": 1,
+      "pattern": "^[a-f0-9]{32}$"
+    },
+    "manifest_hash": {
+      "type": "string",
+      "maxLength": 512,
+      "minLength": 1,
+      "pattern": "^[a-f0-9]{64}$"
+    }
+  },
+  "required": [
+    "schema_version",
+    "commit_id",
+    "manifest_hash"
+  ],
+  "additionalProperties": false,
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:acg:collector:pointer:1.0",
+  "title": "pointer Schema 1.0"
+}
