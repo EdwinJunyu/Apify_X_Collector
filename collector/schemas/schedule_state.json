@@ -1,0 +1,85 @@
+{
+  "type": "object",
+  "properties": {
+    "schedule_key": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "maxLength": 512
+    },
+    "claimed_day": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "maxLength": 512
+    },
+    "missed_days": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "entries": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "account_id": {
+            "type": "string",
+            "maxLength": 512,
+            "minLength": 1
+          },
+          "request_id": {
+            "type": "string",
+            "maxLength": 512,
+            "minLength": 1,
+            "pattern": "^[a-f0-9]{32}$"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "PENDING",
+              "STARTED",
+              "BLOCKED",
+              "DONE",
+              "FAILED"
+            ]
+          },
+          "job_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 512
+          },
+          "error_code": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 512
+          }
+        },
+        "required": [
+          "account_id",
+          "request_id",
+          "status",
+          "job_id",
+          "error_code"
+        ],
+        "additionalProperties": false
+      },
+      "maxItems": 150
+    }
+  },
+  "required": [
+    "schedule_key",
+    "claimed_day",
+    "missed_days",
+    "entries"
+  ],
+  "additionalProperties": false,
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:acg:collector:schedule_state:1.0",
+  "title": "schedule_state Schema 1.0"
+}
