@@ -6,7 +6,7 @@
 
 **当前版本：0.0.9。** 主要面向自己在 Windows 上使用。默认 **OFFLINE**，可以先体验完整流程，不需要 Token，也不会产生 Apify 费用。真实采集需完成账号、来源许可及 Actor 收费配置。
 
-> 当前自动测试记录为 150 项通过，包含 Qt 离屏与独立 Worker 测试。Windows 原生任务计划、ACL/Named Pipe、真实双物理盘恢复及真实 Apify 试点仍待实机验证。不要把离线通过理解为真实账号已验证可采集。
+> 2026-10-26 已有自动测试记录共 211 项：208 通过、3 跳过、0 失败，包含 Qt 离屏与独立 Worker 测试。Windows 原生任务计划、ACL/Named Pipe、真实双物理盘恢复及真实 Apify 试点仍待实机验证。不要把离线通过理解为真实账号已验证可采集。
 
 ## 1. 第一次启动：先跑离线示例
 
@@ -37,7 +37,7 @@
 | 画师账号 | 添加/编辑账号，选择一个账号启动采集 |
 | 任务与 Runs | 查看进度和 Coverage，恢复原任务，核对 UNKNOWN，登记账单 |
 | 帖子与审核 | 筛选帖子、查看正文、人工审核、打开原帖、导出 CSV、删除 |
-| 媒体素材库 | 添加媒体下载、下载所选、修复链接、授权预览 |
+| 媒体素材库 | 添加媒体下载、下载所选、修复链接、重新授权、授权预览 |
 | 预算与存储 | 查看累计费用及磁盘使用量，修改上限，扩档审批 |
 | 权限与合规 | 分别维护访问、保存、媒体下载与再分发许可 |
 | 备份与恢复 | 注册外盘目录，创建/校验快照，恢复到新空目录 |
@@ -129,11 +129,17 @@ Token 保存在本机私有配置目录，通过界面管理即可，不要上�
 
 分页读取失败也优先使用 **恢复所选**，而不是新增采集。
 
+创建接口明确拒绝（HTTP 400/401/403/404/405/429），或本地 intent 已保存但外盘账本同步失败、POST 尚未发送时，任务以 `FAILED` + `CONFIRMED_NOT_CREATED` 结束，并记录零费用和证据，释放预留。HTTP 408/5xx、网络超时及损坏响应仍保留 `REMOTE_OUTCOME_UNKNOWN`，不会自动重发。
+
+对于历史 `RUN_INTENT` / `REMOTE_OUTCOME_UNKNOWN`，只有在 Console 核对 Actor、账号、输入指纹、时间及收费记录，确实确认没有创建 Run 后，才可在 **核对 UNKNOWN Run** 中勾选“已核实没有创建 Run”，留空 Run ID、填写证据 URI，并输入完整本地任务 ID。已有 Run ID、Dataset 或费用观测的任务不能这样结案；普通零金额账单也不能解除 UNKNOWN。
+
 ### 登记最终账单
 
 任务进入可结算状态后，到 Console 核对最终金额，再点击 **登记最终账单**，填写十进制金额与账单证据 URI。`observed_usd` 是观察费用，不等于最终账单。
 
 未结算任务会阻断新付费 Run。0.0.9 支持在来源许可撤回或 Handle 改名后登记既有费用，但仍核对稳定账号、来源和 Actor 身份；这不会恢复内容访问权限。
+
+`RUNNING` / `READING` 任务登记最终账单时，会先只查询远端 Run 状态，确认已经结束；结算后停止该任务剩余内容导入，保留已保存内容。远端仍运行或 Run 身份未知时不能结算。旧适配器退役的 UNKNOWN 任务也可先人工绑定已有 Run，再核账；核账不会读取 Dataset 或恢复来源访问。
 
 ## 5. 帖子审核与媒体下载
 
@@ -143,7 +149,11 @@ Token 保存在本机私有配置目录，通过界面管理即可，不要上�
 
 通常先由 `STAGING` 标记为 `REVIEWED`。`PUBLISHABLE` 还需要再分发许可等检查，不能直接从 `STAGING` 跳过去；它只是内部资格标记，不会自动发布到网站或 App。
 
+审核绑定具体内容版本。正文、媒体引用或内容分类变化会生成新版本，需要重新审核；仅互动数或观测时间更新不会增加内容版本或改变审核绑定。发布资格仍按当前许可检查。
+
 **导出 CSV** 用于外部查看审查元数据，不是完整数据备份。删除帖子需输入对应 Post ID 确认，会清理相关历史和已登记媒体，并记录删除屏障。未连接的外盘清理可能保持 pending，重新连接后继续处理；自行复制到其他位置的未知副本不在自动清理范围内。
+
+重叠采集再次遇到已删除帖子时，会在身份与字段校验后计为 `filtered_deleted`，跳过保存并允许其余记录正常完成同步及提交 checkpoint。损坏字段和身份冲突仍隔离；已删除内容不会恢复，也不计入接受数量或内容覆盖范围。
 
 ### 媒体
 
@@ -152,6 +162,8 @@ Token 保存在本机私有配置目录，通过界面管理即可，不要上�
 3. 成功后点击 **授权预览**。
 
 帖子保存与媒体下载分开，媒体失败不会回滚已保存帖子。`UNKNOWN` 不自动下载；R18 需要单独明确审核，受限制内容会被阻断。链接永久失效时先用 **修复链接**，不要反复重试旧链接。
+
+需要更新素材授权时，选中素材并点击 **重新授权**，填写重新核实的分级、当前许可与内容审查证据 URI、获准保留至 UTC，以及适用的 R18 审查确认。系统重新检查来源、许可范围和有效期；已有文件通过完整性检查后可继续使用，原授权记录保留。仅本批剩余额度不足的下载留待下一批；单文件超过整批容量则永久超限，需先处理限制再尝试。
 
 ## 6. 每日自动运行
 
@@ -165,6 +177,8 @@ Token 保存在本机私有配置目录，通过界面管理即可，不要上�
 
 启用前会检查有效来源许可、账号手动测试、外盘、预算和活动账号数量。改计划时间后保存设置；停止每日创建任务仍通过 **每日计划…** 操作。仅停止 GUI 不会停用计划。
 
+修改模式、Actor ID 或 Build 会自动停用每日计划。各 ACTIVE 账号需在当前配置下完成手动同步，再重新启用计划；每次计划创建任务也会检查手动验收是否仍匹配。
+
 ## 7. 数据放在哪里，怎样备份和恢复
 
 | 内容 | Windows 默认位置 |
@@ -176,6 +190,8 @@ Token 保存在本机私有配置目录，通过界面管理即可，不要上�
 
 活动数据使用 JSONL 事件及 Manifest，索引是派生数据。不要直接修改 journal、删除屏障或费用记录。活动目录默认上限 50 GiB，所在磁盘至少保留 10 GiB 空闲。
 
+容量显示为约数，最多缓存 5 秒。备份列表刷新只读取索引和清单，不重新校验所有文件；列表中的历史校验结果仅在本次会话且快照未变化时有效。需要确认完整性时，点击 **校验快照**。
+
 ### 备份
 
 在 **备份与恢复** 点击 **注册外盘目录**，输入另一块物理磁盘上的空目录并再次确认路径。然后选择该目录，点击 **创建快照**，完成后 **校验快照**。
@@ -185,6 +201,8 @@ Token 保存在本机私有配置目录，通过界面管理即可，不要上�
 注册外盘后，新的 Run 意图与费用预留需要同步过去；外盘断开可能阻止新 Run。独立费用账本用于避免恢复旧快照后预算倒退。
 
 ### 恢复
+
+既有 vault 的 `ERASURES.json` 缺失或损坏时，恢复、创建快照及重新注册均拒绝继续；缺失时返回 `VAULT_ERASURES_MISSING`。只有首次注册空 vault 才初始化删除账本。不要用空账本替代丢失记录，即使旧快照本身通过哈希校验，也不能证明其不含后来删除的内容。
 
 1. 选中快照，点击 **恢复到新目录…**。
 2. 指定新的空目录并确认；不能覆盖现有活动数据。
@@ -198,6 +216,8 @@ Token 保存在本机私有配置目录，通过界面管理即可，不要上�
 ## 8. 升级、验证与常见问题
 
 ### 使用习惯
+
+当前源码版本仍为 **0.0.9**，最低 reader level 为 **11**。新代码打开数据目录会提升其兼容性下限，旧 reader 不能读取，安装器会阻止不兼容回滚。升级前保留已校验的备份，不要仅凭版本号相同判断数据兼容。源码更新不代表真实采集或完整 Windows 发布门禁已验收。
 
 - 日常：启动 → 看任务/费用 → 手动采集或检查计划 → 审核 → 按需备份。
 - 离开前：分清是只退出界面、暂停新任务，还是停止 Worker。
@@ -235,7 +255,7 @@ Token 保存在本机私有配置目录，通过界面管理即可，不要上�
 
 The default mode is **OFFLINE**. It uses synthetic data and does not require a token or incur Apify charges. Live collection requires verified account identity, source permissions, and a compatible Actor with reviewed pricing.
 
-The recorded automated suite passed 150 tests, including Qt offscreen and separate Worker tests. Native Windows scheduling/ACL/Named Pipe behavior, real two-disk recovery, and a live Apify pilot still require validation.
+The recorded automated suite on 2026-10-26 ran 211 tests: 208 passed, 3 skipped, and 0 failed, including Qt offscreen and separate Worker tests. Native Windows scheduling/ACL/Named Pipe behavior, real two-disk recovery, and a live Apify pilot still require validation.
 
 ## 1. Install and try the offline workflow
 
@@ -259,7 +279,7 @@ The current interface is Chinese; the labels below match the buttons you will se
 | 画师账号 — Accounts | Identity, account settings, manual collection |
 | 任务与 Runs — Jobs/Runs | Progress, resume, UNKNOWN reconciliation, final bills |
 | 帖子与审核 — Posts/Review | Filters, text, review, original links, CSV, deletion |
-| 媒体素材库 — Media | Queue, download, repair URLs, permitted preview |
+| 媒体素材库 — Media | Queue, download, repair URLs, reauthorize, permitted preview |
 | 预算与存储 — Budget/Storage | Cumulative cost, disk limits, staged expansion |
 | 权限与合规 — Policies | Separate permissions for each operation |
 | 备份与恢复 — Backup/Recovery | Register a vault, create/verify/restore snapshots |
@@ -339,25 +359,31 @@ The hard limits are **US$0.50 per Run** and **US$10 cumulative pilot budget**. O
 
 For UNKNOWN, identify the Run in Console by Actor, input/account, and time. Select the local job, click **核对 UNKNOWN Run**, and provide the verified Run ID and evidence URI. Then use **恢复所选** to continue the existing Run. Use this same resume action after a Dataset page failure rather than creating another paid Run.
 
-P1 修复：创建接口明确拒绝（HTTP 400/401/403/404/405/429），或本地 intent 已保存但外盘账本同步失败、POST 尚未发送时，任务以 `FAILED` + `CONFIRMED_NOT_CREATED` 结束，并记录零费用和证据，释放预留。HTTP 408/5xx、网络超时及损坏响应仍保留 `REMOTE_OUTCOME_UNKNOWN`，不会自动重发。
+Explicit creation rejection (HTTP 400/401/403/404/405/429), or a failed vault-ledger sync before the POST is sent, ends the job as `FAILED` with `CONFIRMED_NOT_CREATED`, zero cost, and evidence, releasing its reservation. HTTP 408/5xx, network timeouts, and malformed responses remain `REMOTE_OUTCOME_UNKNOWN`; creation is not automatically retried.
 
-对于历史 `RUN_INTENT` / `REMOTE_OUTCOME_UNKNOWN`，只有在 Console 核对 Actor、账号、输入指纹、时间及收费记录，确实确认没有创建 Run 后，才可在 **核对 UNKNOWN Run** 中勾选“已核实没有创建 Run”，留空 Run ID、填写证据 URI，并输入完整本地任务 ID。已有 Run ID、Dataset 或费用观测的任务不能这样结案；普通零金额账单也不能解除 UNKNOWN。
+For historical `RUN_INTENT` / `REMOTE_OUTCOME_UNKNOWN` jobs, first verify the Actor, account, input fingerprint, time, and charge records in Console. Only with evidence that no Run was created, select **已核实没有创建 Run** in **核对 UNKNOWN Run**, leave Run ID empty, provide the evidence URI, and enter the complete local job ID. Jobs with an existing Run ID, Dataset, or observed cost cannot use this path. A zero-value bill alone cannot clear UNKNOWN.
 
 When eligible for billing, click **登记最终账单** and enter the final decimal USD amount plus bill evidence. `observed_usd` is an observed amount, not a final invoice. Unsettled jobs block new paid Runs.
 
 Version 0.0.9 allows historical billing after permission revocation or handle changes while still checking stable account/source and Actor identity. This does not reauthorize source-content access.
 
+For `RUNNING` / `READING` jobs, final billing first queries only the remote Run status to confirm it has ended. Settlement stops remaining content import for that job and preserves already saved content. A still-running or unidentified Run cannot be settled. UNKNOWN jobs with a retired adapter can first be manually linked to an existing Run, then billed; accounting does not read the Dataset or restore source access.
+
 ## 5. Review posts and download media
 
 In **帖子与审核**, inspect the text or original post and use **人工审核** to record reviewer, evidence, rating, and notes. Normally move from `STAGING` to `REVIEWED` first. `PUBLISHABLE` requires additional permission checks and is only an internal status: it does not publish anything automatically.
 
+Reviews bind to a specific content version. Changes to text, media references, or content classification create a new version requiring review. Changes only to interaction counts or observation time do not create a content version or change the review binding. Publication eligibility still depends on current permissions.
+
 CSV export is a review-metadata export, not a full backup. Deleting a post requires its Post ID and cleans related history and registered media, with an erasure barrier to prevent resurrection. Disconnected backup cleanup remains pending; unknown copies made outside the application are not automatically erased.
 
-重叠采集再次遇到已删除帖子时，会在身份与字段校验后计为 `filtered_deleted`，跳过保存并允许其余记录正常完成同步及提交 checkpoint。损坏字段和身份冲突仍隔离；已删除内容不会恢复，也不计入接受数量或内容覆盖范围。
+When overlap collection encounters a deleted post, validated identity and fields allow it to be counted as `filtered_deleted` and skipped while other records and the checkpoint proceed. Malformed fields and identity conflicts are still quarantined. Deleted content is not restored or counted as accepted content or coverage.
 
 For media, use **添加下载任务**, enter an existing Post ID, permitted HTTPS URL, reviewed rating, evidence, and retention expiry. Select the task and click **下载所选**, then **授权预览** after success.
 
 Media failures do not discard saved posts. UNKNOWN media is not automatically downloaded; R18 requires explicit individual review and restricted content is blocked. Use **修复链接** for permanently invalid URLs before retrying.
+
+To update authorization, select the media and click **重新授权** (Reauthorize). Enter the reviewed rating, current permission/content-review evidence URI, retention expiry in UTC, and applicable R18 review confirmation. Source, permission scopes, and expiry are checked again. Existing files can be reused after integrity checks; original authorization records are retained. Downloads exceeding only the remaining batch allowance wait for the next batch; a file larger than the entire batch allowance is permanently over limit until the underlying restriction is addressed.
 
 ## 6. Enable a daily schedule
 
@@ -371,6 +397,8 @@ The Windows task runs as the current user, with daily and logon triggers. It doe
 
 Permissions, manual-test history, physical backup disk, budget, and account count are checked before enabling. Disable through **每日计划…**; closing the GUI does not disable scheduling. Creating daily collection tasks does not automatically create daily snapshots.
 
+Changing mode, Actor ID, or Build automatically disables the schedule. Complete a manual sync for each ACTIVE account under the current configuration before re-enabling it. Each scheduled job creation also checks that manual acceptance still matches.
+
 ## 7. Storage, backups, and recovery
 
 | Item | Default Windows location |
@@ -381,6 +409,8 @@ Permissions, manual-test history, physical backup disk, budget, and account coun
 | Backup vault | Another physical disk chosen and registered by you |
 
 Data uses JSONL events and Manifests. Do not manually edit journals, erasure barriers, or accounting records. Default storage limits are 50 GiB of active data and at least 10 GiB free on the disk.
+
+Storage usage is approximate and cached for up to five seconds. Refreshing the backup list reads only indexes and manifests; it does not recheck every file. Historical verification results apply only within the current session while the snapshot is unchanged. Click **校验快照** when you need a full integrity check.
 
 ### Back up
 
@@ -397,11 +427,13 @@ After registration, new Run intents and reservations must also reach the vault. 
 
 Restore merges erasure/accounting records and checks permissions. New jobs are paused and scheduling is disabled by default. Version 0.0.9 replays necessary imports from the original Dataset rather than trusting newer page offsets that lack matching restored posts. This reads an existing Run rather than creating a new one.
 
-既有 vault 的 `ERASURES.json` 缺失或损坏时，恢复、创建快照及重新注册均拒绝继续；缺失时返回 `VAULT_ERASURES_MISSING`。只有首次注册空 vault 才初始化删除账本。不要用空账本替代丢失记录，即使旧快照本身通过哈希校验，也不能证明其不含后来删除的内容。
+If an existing vault has a missing or corrupt `ERASURES.json`, restore, snapshot creation, and re-registration refuse to proceed; a missing ledger returns `VAULT_ERASURES_MISSING`. Only initial registration of an empty vault initializes this ledger. Do not replace lost records with an empty ledger: valid snapshot hashes do not prove that the snapshot excludes subsequently deleted content.
 
 If restore fails, use another empty directory. Do not remove the in-progress seal to bypass validation. If the original disk is lost, run `py -3 recover_backup.py --help` and provide the vault, snapshot, new target, and confirmed store ID.
 
 ## 8. Upgrade, verify, and troubleshoot
+
+The source version remains **0.0.9**, with minimum reader level **11**. Opening a data root with current code raises its compatibility floor; older readers cannot read it and the installer blocks incompatible rollback. Keep a verified backup before upgrading; an identical version number does not guarantee data compatibility. Source updates do not establish live-collection or full Windows release acceptance.
 
 Before upgrading, disable scheduling, stop the Worker, check remote Runs, and create/verify a snapshot. Continue with the source launcher, or run `Install_User.cmd` for a versioned install and then `Run_Installed.cmd`. Installation keeps application code separate from data; do not let two versions write the same data root.
 
@@ -488,7 +520,7 @@ Qt 控件和 Worker 进程测试已运行；界面静态契约检查无发现。
 - 发布状态和已打开详情随当前许可更新；计划绑定当前配置的手动验收，配置切换停用计划，每次计划创建再核对。后台清理按实际结果设置与消除告警。
 - 单文件超过整批容量时永久超限，后续文件可继续；仅本批剩余额度不足时留待下一批。
 
-本轮新增冲突原因的严格 Schema 枚举，最低 reader level 提升至 **11**；旧 reader 无法重放此记录，因此禁止不兼容回滚。版本仍为 0.0.9，仅作本地源码提交，未发布。原目录没有 Git 元数据，已初始化本地仓库并先保存包含此前修复的审查前基线，随后单独提交本轮修复；未配置远程或推送。
+本轮新增冲突原因的严格 Schema 枚举，最低 reader level 提升至 **11**；旧 reader 无法重放此记录，因此禁止不兼容回滚。版本仍为 0.0.9；本轮审查完成时仅作本地源码提交，未发布。审查当时原目录没有 Git 元数据，先初始化本地仓库保存审查前基线，再单独提交修复。随后已连接远程并同步源码；这些历史记录中的“本地修复、未发布”描述当时状态，不代表当前源码仍未同步，也不代表正式发行版已完成验收。
 
 最终验证新增 **23 项回归**：主套件 205 项（202 通过、3 项平台条件跳过），旧原型 6 项全部通过，共 **211 项，208 通过、3 跳过、0 失败**。使用 Windows、独立 Python 3.14 与锁定 Qt 依赖，包含 Qt 离屏交互、独立 Worker 进程 IPC、模拟网络及故障注入。严格界面静态契约检查无发现，已检查在途账单对话框的离屏渲染。审查者交叉复核后补齐了同路径清理凭据中断及退役 adapter 的核账恢复闭环。
 
