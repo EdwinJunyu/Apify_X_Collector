@@ -1,0 +1,103 @@
+{
+  "type": "object",
+  "properties": {
+    "job_id": {
+      "type": "string",
+      "maxLength": 512,
+      "minLength": 1
+    },
+    "actor_id": {
+      "type": "string",
+      "maxLength": 512,
+      "minLength": 1
+    },
+    "actor_build": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "maxLength": 512
+    },
+    "input_fingerprint": {
+      "type": "string",
+      "maxLength": 512,
+      "minLength": 1,
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "run_id": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "maxLength": 512
+    },
+    "dataset_id": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "maxLength": 512
+    },
+    "requested_window": {
+      "type": "string",
+      "maxLength": 512,
+      "minLength": 1
+    },
+    "run_status": {
+      "type": "string",
+      "enum": [
+        "INTENT",
+        "RUNNING",
+        "SUCCEEDED",
+        "FAILED",
+        "REMOTE_OUTCOME_UNKNOWN"
+      ]
+    },
+    "began_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "completed_at": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "format": "date-time"
+    },
+    "downloaded_offset": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "final_dataset_count": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "cost_status": {
+      "type": "string",
+      "enum": [
+        "UNKNOWN",
+        "RESERVED",
+        "FINALIZED"
+      ]
+    }
+  },
+  "required": [
+    "job_id",
+    "actor_id",
+    "actor_build",
+    "input_fingerprint",
+    "run_id",
+    "dataset_id",
+    "requested_window",
+    "run_status",
+    "began_at",
+    "completed_at",
+    "downloaded_offset",
+    "final_dataset_count",
+    "cost_status"
+  ],
+  "additionalProperties": false,
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:acg:collector:run:1.0",
+  "title": "run Schema 1.0"
+}

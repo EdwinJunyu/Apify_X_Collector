@@ -1,0 +1,108 @@
+{
+  "type": "object",
+  "properties": {
+    "policy_id": {
+      "type": "string",
+      "maxLength": 512,
+      "minLength": 1
+    },
+    "version": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "source_id": {
+      "type": "string",
+      "maxLength": 512,
+      "minLength": 1
+    },
+    "operation": {
+      "type": "string",
+      "enum": [
+        "access",
+        "retain",
+        "download_media",
+        "redistribute"
+      ]
+    },
+    "permission_state": {
+      "type": "string",
+      "enum": [
+        "PERMITTED",
+        "DENIED",
+        "UNKNOWN",
+        "REVOKED"
+      ]
+    },
+    "purpose": {
+      "type": "string",
+      "maxLength": 512,
+      "minLength": 1
+    },
+    "evidence_uri": {
+      "type": "string",
+      "maxLength": 512,
+      "minLength": 1
+    },
+    "reviewed_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "reviewer": {
+      "type": "string",
+      "maxLength": 512,
+      "minLength": 1
+    },
+    "valid_until": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "retention_rule": {
+      "type": "string",
+      "maxLength": 512,
+      "minLength": 1
+    },
+    "display_rule": {
+      "type": "string",
+      "maxLength": 512,
+      "minLength": 1
+    },
+    "deletion_rule": {
+      "type": "string",
+      "maxLength": 512,
+      "minLength": 1
+    },
+    "content_scope": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "enum": [
+          "METADATA",
+          "TEXT",
+          "RAW",
+          "MEDIA"
+        ]
+      },
+      "maxItems": 1000
+    }
+  },
+  "required": [
+    "policy_id",
+    "version",
+    "source_id",
+    "operation",
+    "permission_state",
+    "purpose",
+    "evidence_uri",
+    "reviewed_at",
+    "reviewer",
+    "valid_until",
+    "retention_rule",
+    "display_rule",
+    "deletion_rule",
+    "content_scope"
+  ],
+  "additionalProperties": false,
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:acg:collector:policy:1.0",
+  "title": "policy Schema 1.0"
+}

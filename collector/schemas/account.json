@@ -1,0 +1,107 @@
+{
+  "type": "object",
+  "properties": {
+    "account_id": {
+      "type": "string",
+      "maxLength": 512,
+      "minLength": 1
+    },
+    "entity_id": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "maxLength": 512
+    },
+    "platform": {
+      "type": "string",
+      "const": "X"
+    },
+    "external_user_id": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "maxLength": 512,
+      "pattern": "^[0-9]{1,32}$"
+    },
+    "current_handle": {
+      "type": "string",
+      "maxLength": 512,
+      "minLength": 1,
+      "pattern": "^[A-Za-z0-9_]{1,15}$"
+    },
+    "handle_history": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "maxLength": 512,
+        "minLength": 1,
+        "pattern": "^[A-Za-z0-9_]{1,15}$"
+      },
+      "maxItems": 1000
+    },
+    "verified_source_urls": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "maxLength": 512,
+        "minLength": 1
+      },
+      "maxItems": 1000
+    },
+    "verification_status": {
+      "type": "string",
+      "enum": [
+        "VERIFIED",
+        "PENDING",
+        "REJECTED"
+      ]
+    },
+    "account_content_rating": {
+      "type": "string",
+      "enum": [
+        "SFW",
+        "R18",
+        "UNKNOWN"
+      ]
+    },
+    "source_policy_id": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "maxLength": 512
+    },
+    "observed_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "active_status": {
+      "type": "string",
+      "enum": [
+        "ACTIVE",
+        "PAUSED",
+        "DISABLED"
+      ]
+    }
+  },
+  "required": [
+    "account_id",
+    "entity_id",
+    "platform",
+    "external_user_id",
+    "current_handle",
+    "handle_history",
+    "verified_source_urls",
+    "verification_status",
+    "account_content_rating",
+    "source_policy_id",
+    "observed_at",
+    "active_status"
+  ],
+  "additionalProperties": false,
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:acg:collector:account:1.0",
+  "title": "account Schema 1.0"
+}

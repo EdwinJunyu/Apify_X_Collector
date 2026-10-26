@@ -1,0 +1,63 @@
+{
+  "type": "object",
+  "properties": {
+    "platform": {
+      "type": "string",
+      "const": "X"
+    },
+    "subject_type": {
+      "const": "POST",
+      "type": "string"
+    },
+    "subject_id": {
+      "type": "string",
+      "maxLength": 512,
+      "minLength": 1,
+      "pattern": "^[0-9]{1,32}$"
+    },
+    "request_reason": {
+      "type": "string",
+      "enum": [
+        "WITHDRAWN",
+        "POLICY_REVOKED",
+        "AUTHOR_REQUEST",
+        "INVALID_SOURCE"
+      ]
+    },
+    "requested_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "cleanup_scope": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "enum": [
+          "current_index"
+        ]
+      },
+      "maxItems": 1000
+    },
+    "cleaned_at": {
+      "type": "null"
+    },
+    "verification_status": {
+      "const": "PENDING_PHYSICAL_CLEANUP",
+      "type": "string"
+    }
+  },
+  "required": [
+    "platform",
+    "subject_type",
+    "subject_id",
+    "request_reason",
+    "requested_at",
+    "cleanup_scope",
+    "cleaned_at",
+    "verification_status"
+  ],
+  "additionalProperties": false,
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:acg:collector:tombstone:1.0",
+  "title": "tombstone Schema 1.0"
+}

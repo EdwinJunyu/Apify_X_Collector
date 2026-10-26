@@ -1,0 +1,177 @@
+{
+  "type": "object",
+  "properties": {
+    "schema_version": {
+      "type": "string",
+      "const": "1.0"
+    },
+    "event_id": {
+      "type": "string",
+      "maxLength": 512,
+      "minLength": 1,
+      "pattern": "^[a-f0-9]{32}$"
+    },
+    "event_type": {
+      "type": "string",
+      "enum": [
+        "POST_UPSERT",
+        "POST_OBSERVATION",
+        "QUARANTINE",
+        "TOMBSTONE",
+        "CHECKPOINT",
+        "JOB_STATE",
+        "MEDIA_STATE",
+        "ACCOUNT_STATE",
+        "POLICY_STATE",
+        "REVIEW_STATE",
+        "SETTINGS_STATE",
+        "OPERATION_LOG",
+        "SCHEDULE_STATE",
+        "LEGACY_IMPORT",
+        "SCALE_APPROVAL"
+      ]
+    },
+    "recorded_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "commit_id": {
+      "type": "string",
+      "maxLength": 512,
+      "minLength": 1,
+      "pattern": "^[a-f0-9]{32}$"
+    },
+    "source_id": {
+      "type": "string",
+      "maxLength": 512,
+      "minLength": 1,
+      "pattern": "^x:[0-9]{1,32}$"
+    },
+    "actor_run_id": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "maxLength": 512
+    },
+    "rights_policy_id": {
+      "type": "string",
+      "maxLength": 512,
+      "minLength": 1
+    },
+    "rights_policy_version": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "payload": {
+      "type": "object"
+    },
+    "payload_hash": {
+      "type": "string",
+      "maxLength": 512,
+      "minLength": 1,
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "retention_class": {
+      "const": "policy-bound",
+      "type": "string"
+    },
+    "redaction_state": {
+      "type": "string",
+      "enum": [
+        "NONE",
+        "SANITIZED"
+      ]
+    }
+  },
+  "required": [
+    "schema_version",
+    "event_id",
+    "event_type",
+    "recorded_at",
+    "commit_id",
+    "source_id",
+    "actor_run_id",
+    "rights_policy_id",
+    "rights_policy_version",
+    "payload",
+    "payload_hash",
+    "retention_class",
+    "redaction_state"
+  ],
+  "additionalProperties": false,
+  "$defs": {
+    "post_observation": {
+      "type": "object",
+      "properties": {
+        "platform": {
+          "type": "string",
+          "const": "X"
+        },
+        "post_id": {
+          "type": "string",
+          "maxLength": 512,
+          "minLength": 1,
+          "pattern": "^[0-9]{1,32}$"
+        },
+        "account_id": {
+          "type": "string",
+          "maxLength": 512,
+          "minLength": 1
+        },
+        "author_external_id": {
+          "type": "string",
+          "maxLength": 512,
+          "minLength": 1,
+          "pattern": "^[0-9]{1,32}$"
+        },
+        "author_handle_at_observation": {
+          "type": "string",
+          "maxLength": 512,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9_]{1,15}$"
+        },
+        "source_url": {
+          "type": "string",
+          "maxLength": 2048,
+          "minLength": 1
+        },
+        "version_number": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "observed_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "indexed_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "metrics": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "integer",
+            "minimum": 0
+          }
+        }
+      },
+      "required": [
+        "platform",
+        "post_id",
+        "account_id",
+        "author_external_id",
+        "author_handle_at_observation",
+        "source_url",
+        "version_number",
+        "observed_at",
+        "indexed_at",
+        "metrics"
+      ],
+      "additionalProperties": false
+    }
+  },
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:acg:collector:event:1.0",
+  "title": "event Schema 1.0"
+}

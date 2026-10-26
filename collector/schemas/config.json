@@ -1,0 +1,87 @@
+{
+  "type": "object",
+  "properties": {
+    "schema_version": {
+      "type": "string",
+      "const": "1.0"
+    },
+    "mode": {
+      "const": "OFFLINE",
+      "type": "string"
+    },
+    "schedule_enabled": {
+      "const": false,
+      "type": "boolean"
+    },
+    "schedule_local_time": {
+      "type": "string",
+      "maxLength": 512,
+      "minLength": 1,
+      "pattern": "^([01][0-9]|2[0-3]):[0-5][0-9]$"
+    },
+    "timezone": {
+      "type": "string",
+      "maxLength": 512,
+      "minLength": 1
+    },
+    "per_run_limit_usd": {
+      "type": "string",
+      "maxLength": 512,
+      "minLength": 1,
+      "pattern": "^[0-9]+\\.[0-9]{2,6}$"
+    },
+    "pilot_limit_usd": {
+      "type": "string",
+      "maxLength": 512,
+      "minLength": 1,
+      "pattern": "^[0-9]+\\.[0-9]{2,6}$"
+    },
+    "active_limit_bytes": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "min_free_bytes": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "overlap_hours": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "data_root": {
+      "type": "string",
+      "maxLength": 512,
+      "minLength": 1
+    },
+    "backup_root": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "maxLength": 512
+    },
+    "paid_actor_concurrency": {
+      "const": 1,
+      "type": "integer"
+    }
+  },
+  "required": [
+    "schema_version",
+    "mode",
+    "schedule_enabled",
+    "schedule_local_time",
+    "timezone",
+    "per_run_limit_usd",
+    "pilot_limit_usd",
+    "active_limit_bytes",
+    "min_free_bytes",
+    "overlap_hours",
+    "data_root",
+    "backup_root",
+    "paid_actor_concurrency"
+  ],
+  "additionalProperties": false,
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:acg:collector:config:1.0",
+  "title": "config Schema 1.0"
+}

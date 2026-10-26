@@ -1,0 +1,146 @@
+{
+  "type": "object",
+  "properties": {
+    "media_id": {
+      "type": "string",
+      "maxLength": 512,
+      "minLength": 1,
+      "pattern": "^[a-f0-9]{32}$"
+    },
+    "post_id": {
+      "type": "string",
+      "maxLength": 512,
+      "minLength": 1,
+      "pattern": "^[0-9]{1,32}$"
+    },
+    "account_id": {
+      "type": "string",
+      "maxLength": 512,
+      "minLength": 1
+    },
+    "source_id": {
+      "type": "string",
+      "maxLength": 512,
+      "minLength": 1
+    },
+    "context_hash": {
+      "type": "string",
+      "maxLength": 512,
+      "minLength": 1,
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "source_url": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "maxLength": 4096
+    },
+    "content_rating": {
+      "type": "string",
+      "enum": [
+        "SFW",
+        "R18",
+        "UNKNOWN"
+      ]
+    },
+    "rating_evidence": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "maxLength": 512
+    },
+    "restricted": {
+      "type": "boolean"
+    },
+    "allow_r18": {
+      "type": "boolean"
+    },
+    "expires_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "state": {
+      "type": "string",
+      "enum": [
+        "QUEUED",
+        "DOWNLOADING",
+        "DOWNLOADED",
+        "FAILED",
+        "BLOCKED"
+      ]
+    },
+    "sha256": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "maxLength": 512,
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "local_path": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "maxLength": 512
+    },
+    "mime": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "maxLength": 512
+    },
+    "file_size": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "attempts": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "error_code": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "maxLength": 512
+    },
+    "updated_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "authorization_evidence_uri": {
+      "type": "string",
+      "maxLength": 512,
+      "minLength": 1
+    }
+  },
+  "required": [
+    "media_id",
+    "post_id",
+    "account_id",
+    "source_id",
+    "context_hash",
+    "source_url",
+    "content_rating",
+    "rating_evidence",
+    "restricted",
+    "allow_r18",
+    "expires_at",
+    "state",
+    "sha256",
+    "local_path",
+    "mime",
+    "file_size",
+    "attempts",
+    "error_code",
+    "updated_at"
+  ],
+  "additionalProperties": false,
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:acg:collector:media_task:1.0",
+  "title": "media_task Schema 1.0"
+}

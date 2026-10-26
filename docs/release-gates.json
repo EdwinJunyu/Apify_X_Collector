@@ -1,0 +1,12 @@
+{
+  "version": "0.0.9",
+  "offline_engineering": "PASS",
+  "automatic_tests": 150,
+  "native_windows_scheduler_acl_pipe": "NOT_RUN",
+  "real_two_physical_disks": "NOT_RUN",
+  "power_loss": "NOT_RUN",
+  "G1": "OFFLINE_PASS_NATIVE_EVIDENCE_PENDING",
+  "G2": "NOT_RUN_AUTHORIZED_PILOT_REQUIRED",
+  "G3": "NOT_RUN_REAL_STAGE_APPROVAL_REQUIRED",
+  "apify_paid_runs_executed": 0
+}

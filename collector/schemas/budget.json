@@ -1,0 +1,82 @@
+{
+  "type": "object",
+  "properties": {
+    "accounting_scope_id": {
+      "type": "string",
+      "maxLength": 512,
+      "minLength": 1
+    },
+    "job_id": {
+      "type": "string",
+      "maxLength": 512,
+      "minLength": 1
+    },
+    "run_id": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "maxLength": 512
+    },
+    "event_type": {
+      "type": "string",
+      "enum": [
+        "RESERVE",
+        "FINALIZE",
+        "REVERSE",
+        "APPROVE"
+      ]
+    },
+    "reserved_usd": {
+      "type": "string",
+      "maxLength": 512,
+      "minLength": 1,
+      "pattern": "^[0-9]+\\.[0-9]{2,6}$"
+    },
+    "finalized_usd": {
+      "type": "string",
+      "maxLength": 512,
+      "minLength": 1,
+      "pattern": "^[0-9]+\\.[0-9]{2,6}$"
+    },
+    "currency": {
+      "const": "USD",
+      "type": "string"
+    },
+    "source": {
+      "type": "string",
+      "maxLength": 512,
+      "minLength": 1
+    },
+    "finalized_at": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "format": "date-time"
+    },
+    "approved_by": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "maxLength": 512
+    }
+  },
+  "required": [
+    "accounting_scope_id",
+    "job_id",
+    "run_id",
+    "event_type",
+    "reserved_usd",
+    "finalized_usd",
+    "currency",
+    "source",
+    "finalized_at",
+    "approved_by"
+  ],
+  "additionalProperties": false,
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:acg:collector:budget:1.0",
+  "title": "budget Schema 1.0"
+}

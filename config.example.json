@@ -1,0 +1,15 @@
+{
+  "schema_version": "1.0",
+  "mode": "OFFLINE",
+  "schedule_enabled": false,
+  "schedule_local_time": "09:00",
+  "timezone": "America/Vancouver",
+  "per_run_limit_usd": "0.50",
+  "pilot_limit_usd": "10.00",
+  "active_limit_bytes": 53687091200,
+  "min_free_bytes": 10737418240,
+  "overlap_hours": 48,
+  "data_root": "./data",
+  "backup_root": null,
+  "paid_actor_concurrency": 1
+}

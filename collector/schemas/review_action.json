@@ -1,0 +1,71 @@
+{
+  "type": "object",
+  "properties": {
+    "post_id": {
+      "type": "string",
+      "maxLength": 512,
+      "minLength": 1,
+      "pattern": "^[0-9]{1,32}$"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "REVIEWED",
+        "REJECTED",
+        "PUBLISHABLE"
+      ]
+    },
+    "reviewer": {
+      "type": "string",
+      "maxLength": 512,
+      "minLength": 1
+    },
+    "category": {
+      "type": "string",
+      "enum": [
+        "SFW",
+        "R18",
+        "UNKNOWN"
+      ]
+    },
+    "notes": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "maxLength": 2048
+    },
+    "evidence_uri": {
+      "type": "string",
+      "maxLength": 512,
+      "minLength": 1
+    },
+    "reviewed_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "version_number": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "content_hash": {
+      "type": "string",
+      "maxLength": 512,
+      "minLength": 1,
+      "pattern": "^[a-f0-9]{64}$"
+    }
+  },
+  "required": [
+    "post_id",
+    "status",
+    "reviewer",
+    "category",
+    "notes",
+    "evidence_uri",
+    "reviewed_at"
+  ],
+  "additionalProperties": false,
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:acg:collector:review_action:1.0",
+  "title": "review_action Schema 1.0"
+}

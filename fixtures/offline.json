@@ -1,0 +1,115 @@
+{
+  "account": {
+    "account_id": "mock-artist-1",
+    "entity_id": null,
+    "platform": "X",
+    "external_user_id": "101",
+    "current_handle": "mock_artist",
+    "handle_history": [],
+    "verified_source_urls": [
+      "mock://fixture/identity"
+    ],
+    "verification_status": "VERIFIED",
+    "account_content_rating": "UNKNOWN",
+    "source_policy_id": "mock-retain",
+    "observed_at": "2026-10-24T12:00:00Z",
+    "active_status": "ACTIVE"
+  },
+  "post": {
+    "platform": "X",
+    "post_id": "1234567890123456789",
+    "account_id": "mock-artist-1",
+    "author_external_id": "101",
+    "author_handle_at_observation": "mock_artist",
+    "post_type": "ORIGINAL",
+    "quoted_post_id": null,
+    "in_reply_to_id": null,
+    "reposted_post_id": null,
+    "published_at": "2026-10-24T12:00:00Z",
+    "source_url": "https://x.com/mock_artist/status/1234567890123456789",
+    "language": "ja",
+    "text": "合成テスト：新作発表",
+    "media_refs": [],
+    "metrics": {},
+    "hashtags": [],
+    "mentions": [],
+    "content_rating": "UNKNOWN",
+    "coverage_evidence_id": null,
+    "raw_ref": null
+  },
+  "policies": [
+    {
+      "policy_id": "mock-retain",
+      "version": 1,
+      "source_id": "x:101",
+      "operation": "access",
+      "permission_state": "UNKNOWN",
+      "purpose": "offline-fixture",
+      "evidence_uri": "mock://synthetic-owned-fixtures",
+      "reviewed_at": "2026-01-01T00:00:00Z",
+      "reviewer": "fixture-author",
+      "valid_until": "2099-01-01T00:00:00Z",
+      "retention_rule": "synthetic-test-only",
+      "display_rule": "no-public-publish",
+      "deletion_rule": "delete-test-root",
+      "content_scope": []
+    },
+    {
+      "policy_id": "mock-retain",
+      "version": 1,
+      "source_id": "x:101",
+      "operation": "retain",
+      "permission_state": "PERMITTED",
+      "purpose": "offline-fixture",
+      "evidence_uri": "mock://synthetic-owned-fixtures",
+      "reviewed_at": "2026-01-01T00:00:00Z",
+      "reviewer": "fixture-author",
+      "valid_until": "2099-01-01T00:00:00Z",
+      "retention_rule": "synthetic-test-only",
+      "display_rule": "no-public-publish",
+      "deletion_rule": "delete-test-root",
+      "content_scope": [
+        "METADATA",
+        "TEXT"
+      ]
+    },
+    {
+      "policy_id": "mock-retain",
+      "version": 1,
+      "source_id": "x:101",
+      "operation": "download_media",
+      "permission_state": "UNKNOWN",
+      "purpose": "offline-fixture",
+      "evidence_uri": "mock://synthetic-owned-fixtures",
+      "reviewed_at": "2026-01-01T00:00:00Z",
+      "reviewer": "fixture-author",
+      "valid_until": "2099-01-01T00:00:00Z",
+      "retention_rule": "synthetic-test-only",
+      "display_rule": "no-public-publish",
+      "deletion_rule": "delete-test-root",
+      "content_scope": []
+    },
+    {
+      "policy_id": "mock-retain",
+      "version": 1,
+      "source_id": "x:101",
+      "operation": "redistribute",
+      "permission_state": "UNKNOWN",
+      "purpose": "offline-fixture",
+      "evidence_uri": "mock://synthetic-owned-fixtures",
+      "reviewed_at": "2026-01-01T00:00:00Z",
+      "reviewer": "fixture-author",
+      "valid_until": "2099-01-01T00:00:00Z",
+      "retention_rule": "synthetic-test-only",
+      "display_rule": "no-public-publish",
+      "deletion_rule": "delete-test-root",
+      "content_scope": []
+    }
+  ],
+  "context": {
+    "source_id": "x:101",
+    "policy_id": "mock-retain",
+    "policy_version": 1,
+    "purpose": "offline-fixture"
+  }
+}

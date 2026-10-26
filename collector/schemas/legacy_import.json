@@ -1,0 +1,39 @@
+{
+  "type": "object",
+  "properties": {
+    "source_sha256": {
+      "type": "string",
+      "maxLength": 512,
+      "minLength": 1,
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "account_id": {
+      "type": "string",
+      "maxLength": 512,
+      "minLength": 1
+    },
+    "accepted": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "quarantined": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "imported_at": {
+      "type": "string",
+      "format": "date-time"
+    }
+  },
+  "required": [
+    "source_sha256",
+    "account_id",
+    "accepted",
+    "quarantined",
+    "imported_at"
+  ],
+  "additionalProperties": false,
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:acg:collector:legacy_import:1.0",
+  "title": "legacy_import Schema 1.0"
+}
