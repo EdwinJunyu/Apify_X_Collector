@@ -58,7 +58,8 @@ class SyncCoordinator:
             else:
                 cost = money(job['finalized_usd'])
                 finalized += cost
-                if cost > self.per_run:
+                # 新任务限额可以降低；历史任务是否超额按创建时持久化的上限判断。
+                if cost > money(job['reserved_usd']):
                     blocked = True
         return {'finalized': finalized, 'reserved': reserved, 'blocked': blocked}
 
@@ -183,12 +184,27 @@ class SyncCoordinator:
 
     def finalize_bill(self, job_id, account, context, actual_usd, evidence_uri):
         job = self._accounting_job(job_id, account, context)
-        if not evidence_uri or job['state'] not in ('DONE', 'FAILED', 'NEEDS_REVIEW'):
+        if not isinstance(evidence_uri, str) or not evidence_uri.strip():
             raise ValueError('BILL_NOT_READY')
         if job['finalized_usd'] is not None:
             raise ValueError('BILL_ALREADY_FINALIZED')
-        job['bill_evidence_uri'] = evidence_uri
-        job['finalized_usd'] = format(money(actual_usd), 'f')
+        amount = format(money(actual_usd), 'f')
+        if job['state'] in ('RUNNING', 'READING') and job['run_id'] is not None:
+            # 许可撤销或账号配置变化不能冻结已发生的负债。仅核对既有 Run
+            # 的终态，不读取 Dataset、不授权内容导入，也不推断零费用。
+            if self.transport is None:
+                raise ValueError('BILL_REQUIRES_REMOTE_TERMINAL_CHECK')
+            result = self.transport.run(remote_id(job['run_id']))
+            if result['id'] != job['run_id']:
+                raise ValueError('RUN_ID_MISMATCH')
+            if result['status'] not in ('SUCCEEDED', 'FAILED', 'ABORTED', 'TIMED-OUT'):
+                raise ValueError('BILL_REQUIRES_REMOTE_TERMINAL_CHECK')
+            job['state'] = 'FAILED'
+            job['error_code'] = 'CONTENT_IMPORT_STOPPED_AFTER_BILLING'
+        elif job['state'] not in ('DONE', 'FAILED', 'NEEDS_REVIEW'):
+            raise ValueError('BILL_NOT_READY')
+        job['bill_evidence_uri'] = evidence_uri.strip()
+        job['finalized_usd'] = amount
         self._save(job, context)
 
     def advance(self, job_id, account, context):
@@ -260,13 +276,19 @@ class SyncCoordinator:
                 posts.append({})  # sanitized Quarantine, never retain invalid raw response
         result = self.store.ingest(posts, account, self.gate, context)
         job['rejected'] += result['quarantined']
-        job['accepted'] += len(posts) - result['quarantined'] - result['filtered_deleted']
+        job['accepted'] += (len(posts) - result['quarantined'] - result['filtered_deleted']
+                            - result['filtered_stale'])
         # Candidate is advisory until all pages finish. Do not include rejected records.
         for post in posts:
             if post and 'post_id' in post:
                 # 删除屏障是已知的安全过滤，不纳入内容覆盖或候选游标。
                 if ('X:' + post['post_id'] in self.store._tombstones or
                         post['post_id'] in self.store._erased):
+                    continue
+                current = self.store._posts.get('X:' + post['post_id'])
+                if (current is not None and current['content_hash'] != post['content_hash']
+                        and parse_utc(post['observed_at']) < parse_utc(current['observed_at'])):
+                    # 已知过时正文不贡献本批覆盖或候选游标，也不阻塞下一次同步。
                     continue
                 candidate = job['candidate_cursor']
                 if candidate is None or int(post['post_id']) > int(candidate):

@@ -83,13 +83,16 @@ class ServiceTests(unittest.TestCase):
         restarted.finalize_bill({'job_id':jid, 'actual_usd':'0.10', 'evidence_uri':'manual://invoice-confirmed'})
 
     def test_new_content_does_not_inherit_review_and_stale_dialog_is_rejected(self):
+        from datetime import timedelta
+        from collector.validation import parse_utc
         self.sync()
         before = next(iter(self.store.current_posts().values()))
         args = {'post_id':before['post_id'], 'status':'REVIEWED', 'category':'SFW',
                 'reviewer':'test', 'evidence_uri':'mock://version-one', 'notes':'reviewed first version'}
         self.s.review(args)
         account = self.s.accounts()[before['account_id']]
-        changed = dict(before, text='new unreviewed content')
+        changed = dict(before, text='new unreviewed content',
+                       observed_at=(parse_utc(before['observed_at']) + timedelta(seconds=1)).isoformat().replace('+00:00','Z'))
         self.store.ingest([changed], account, self.s.gate(), self.s.context(account))
         detail = self.s.post_detail({'post_id':before['post_id']})
         self.assertEqual((detail['version_number'], detail['review_status'], detail['content_rating']), (2, 'STAGING', 'UNKNOWN'))
@@ -148,17 +151,55 @@ class ServiceTests(unittest.TestCase):
         from unittest.mock import patch
         with patch.object(FakeTransport, 'create', side_effect=TimeoutError):
             jid = self.s.start_sync({'account_id':'mock-artist-1'}, 'b'*32)['job_id']
+        job = self.store.jobs()[jid]
+        job.update(mode='LIVE', actor_id='historic/actor', actor_build='old-build', adapter_version='unavailable-adapter')
+        self.store.save_job(job, self.s.context(self.s.accounts()[job['account_id']]))
         args = {'job_id':jid, 'not_created':True, 'run_id':'',
                 'evidence_uri':'manual://console-and-billing-checked', 'confirmation':jid}
         with self.assertRaisesRegex(ValueError, 'MUST_NOT_HAVE_RUN_ID'):
             self.s.reconcile(dict(args, run_id='existing-run'))
         with self.assertRaisesRegex(ValueError, 'EVIDENCE_AND_JOB_CONFIRMATION'):
             self.s.reconcile(dict(args, confirmation='wrong'))
-        result = self.s.dispatch('reconcile', args, 'c'*32)
+        with patch('desktop.service.ApifyTransport', side_effect=AssertionError('no remote lookup for not-created evidence')):
+            result = self.s.dispatch('reconcile', args, 'c'*32)
         self.assertTrue(result['reconciled'])
         self.assertEqual(self.store.jobs()[jid]['finalized_usd'], '0.00')
         self.assertEqual(self.store.jobs()[jid]['state'], 'FAILED')
         self.sync()
+
+    def test_unknown_retired_adapter_can_reconcile_then_bill_without_dataset(self):
+        from collector.apify import FakeTransport
+        from unittest.mock import Mock, patch, call
+        with patch.object(FakeTransport, 'create', side_effect=TimeoutError):
+            jid = self.s.start_sync({'account_id':'mock-artist-1'}, 'b'*32)['job_id']
+        job = self.store.jobs()[jid]
+        job.update(mode='LIVE', actor_id='historic/actor', actor_build='old-build', adapter_version='unavailable-adapter')
+        self.store.save_job(job, self.s.context(self.s.accounts()[job['account_id']]))
+        policy = next(copy.deepcopy(p) for p in self.s.policies() if p['operation'] == 'access')
+        policy.update(version=2, permission_state='REVOKED')
+        self.s.save_policy({'policy':policy})
+        self.store.close()
+        self.store = StorageEngine(self.root);self.addCleanup(self.store.close)
+        self.s = WorkerService(self.store, self.private)
+        args = {'job_id':jid, 'run_id':'matched-existing-run', 'evidence_uri':'manual://matched-console-run'}
+        # 退役适配器不再阻断核对，但实际查询已创建的 Run 仍须 Token。
+        with self.assertRaisesRegex(PermissionError, 'LIVE_TRANSPORT_DISABLED_OR_NO_TOKEN'):
+            self.s.reconcile(args)
+        self.assertEqual(self.store.jobs()[jid]['state'], 'REMOTE_OUTCOME_UNKNOWN')
+        transport = Mock()
+        transport.run.return_value = {'id':args['run_id'], 'status':'SUCCEEDED'}
+        transport.dataset.side_effect = AssertionError('must not read dataset')
+        transport.items.side_effect = AssertionError('must not read content')
+        self.s.failed_ticks.add(jid)
+        with patch('desktop.service.ApifyTransport', return_value=transport):
+            self.s.reconcile(args)
+            self.assertEqual(self.store.jobs()[jid]['run_id'], args['run_id'])
+            self.s.finalize_bill({'job_id':jid, 'actual_usd':'0.10', 'evidence_uri':'manual://final-invoice'})
+        self.assertEqual(transport.run.call_args_list, [call(args['run_id']), call(args['run_id'])])
+        transport.create.assert_not_called();transport.dataset.assert_not_called();transport.items.assert_not_called()
+        self.assertNotIn(jid, self.s.failed_ticks)
+        self.assertEqual(self.store.jobs()[jid]['finalized_usd'], '0.10')
+        self.assertEqual(self.store.jobs()[jid]['state'], 'FAILED')
     def test_review_stages_and_redistribute(self):
         self.sync();pid=next(iter(self.store.current_posts().values()))['post_id']
         args={'post_id':pid,'status':'PUBLISHABLE','category':'SFW','reviewer':'test','evidence_uri':'mock://review','notes':''}
@@ -174,6 +215,112 @@ class ServiceTests(unittest.TestCase):
         self.assertEqual(len(self.store.current_posts()),3)
         self.assertEqual(set(row['version'] for row in self.s.policies()),{2})
         self.assertEqual(self.s.posts()[0]['rights_status'],'PERMITTED')
+    def test_publishable_view_rechecks_revoked_and_expired_redistribution(self):
+        from unittest.mock import patch
+        from collector.migration import export_posts
+        self.sync()
+        pid = next(iter(self.store.current_posts().values()))['post_id']
+        policy = next(copy.deepcopy(p) for p in self.s.policies() if p['operation'] == 'redistribute')
+        policy.update(version=2, permission_state='PERMITTED', valid_until='2030-01-01T00:00:00Z')
+        self.s.save_policy({'policy':policy})
+        review = {'post_id':pid, 'status':'REVIEWED', 'category':'SFW', 'reviewer':'test', 'evidence_uri':'mock://review'}
+        self.s.review(review);self.s.review(dict(review, status='PUBLISHABLE'))
+        self.assertEqual(self.s.post_detail({'post_id':pid})['review_status'], 'PUBLISHABLE')
+        with patch('collector.policy.utc_now', return_value='2031-01-01T00:00:00Z'):
+            self.assertEqual(self.s.post_detail({'post_id':pid})['review_status'], 'REVIEWED')
+        policy.update(version=3, permission_state='REVOKED')
+        self.s.save_policy({'policy':policy})
+        self.assertEqual(self.s.post_detail({'post_id':pid})['review_status'], 'REVIEWED')
+        self.assertNotIn('PUBLISHABLE', Path(export_posts(self.s)['path']).read_text(encoding='utf-8-sig'))
+        self.assertEqual(self.store.admin_events('REVIEW_STATE')[-1]['status'], 'PUBLISHABLE')
+
+    def test_schedule_requires_matching_mode_build_adapter_and_manual_history(self):
+        from unittest.mock import Mock
+        jid = self.sync()
+        original = self.store.jobs()[jid]
+        context = self.s.context(self.s.accounts()[original['account_id']])
+        for field, value in (('mode','LIVE'), ('actor_id','different/actor'),
+                             ('actor_build','older-build'), ('adapter_version','older-adapter'),
+                             ('context_hash','0'*64)):
+            with self.subTest(field=field):
+                self.store.save_job(dict(original, **{field:value}), context)
+                with self.assertRaisesRegex(ValueError, 'MANUAL_SYNC_TEST_REQUIRED'):
+                    self.s.enable_schedule({'confirmation':'ENABLE'})
+        self.store.save_job(original, context)
+        self.s.schedule.save({'schedule_key':None, 'claimed_day':'2026-10-25', 'missed_days':0,
+            'entries':[{'account_id':original['account_id'], 'request_id':original['command_id'],
+                        'status':'DONE', 'job_id':jid, 'error_code':None}]})
+        with self.assertRaisesRegex(ValueError, 'MANUAL_SYNC_TEST_REQUIRED'):
+            self.s.enable_schedule({'confirmation':'ENABLE'})
+        # 历史计划条目不能被清空当前队列伪装成手动验收。
+        self.s.schedule.save({'schedule_key':None, 'claimed_day':'2026-10-25', 'missed_days':0, 'entries':[]})
+        with self.assertRaisesRegex(ValueError, 'MANUAL_SYNC_TEST_REQUIRED'):
+            self.s.enable_schedule({'confirmation':'ENABLE'})
+        fresh = self.s.start_sync({'account_id':original['account_id']}, 'c'*32)['job_id']
+        for _ in range(5):self.s.tick()
+        self.assertEqual(self.store.jobs()[fresh]['state'], 'DONE')
+        self.s.backups.registry = Mock(return_value=[{'vault_id':'test'}])
+        self.s.backups._vault = Mock()
+        self.s.task_backend.register = Mock(return_value={'installed':True})
+        self.assertTrue(self.s.enable_schedule({'confirmation':'ENABLE'})['installed'])
+
+    def test_scheduled_start_rechecks_manual_test_after_enable(self):
+        self.s.settings['schedule_enabled'] = True
+        with self.assertRaisesRegex(ValueError, 'MANUAL_SYNC_TEST_REQUIRED'):
+            self.s.start_sync({'account_id':'mock-artist-1', 'scheduled':True}, 'b'*32)
+        self.assertEqual(self.store.jobs(), {})
+        self.s.settings['schedule_enabled'] = False
+        self.sync()
+        self.s.settings['schedule_enabled'] = True
+        self.s.schedule.step(self.s, now='2026-10-26T18:00:00Z')
+        self.assertEqual(self.s.schedule.current()['entries'][0]['status'], 'STARTED')
+
+    def test_schedule_configuration_change_disables_before_backend_failure(self):
+        from unittest.mock import Mock
+        for field, value in (('mode','LIVE'), ('actor_id','new/actor'), ('actor_build','new-build')):
+            with self.subTest(field=field):
+                self.s.settings['schedule_enabled'] = True
+                self.s.task_backend.disable = Mock(side_effect=RuntimeError('system-task-unavailable'))
+                settings = dict(self.s.settings, **{field:value})
+                with self.assertRaisesRegex(RuntimeError, 'system-task-unavailable'):
+                    self.s.save_settings({'settings':settings, 'revision':digest(self.s.settings)})
+                self.assertFalse(self.s.settings['schedule_enabled'])
+                self.assertFalse(WorkerService(self.store, self.private).settings['schedule_enabled'])
+                self.s.task_backend.disable.assert_called_once()
+
+    def test_cleanup_pending_is_visible_and_clears_after_success(self):
+        from unittest.mock import Mock
+        complete = {'reports':[], 'active_cleanup_completed':True, 'pending':[], 'backup_policy_sync':[]}
+        pending = dict(complete, active_cleanup_completed=False, pending=['ARTIFACT_CHANGED'])
+        backup_pending = dict(complete, backup_policy_sync=[{'completed':False}])
+        self.s.cleanup = Mock(side_effect=[RuntimeError('interrupted'), pending, complete, backup_pending, complete])
+        for expected in ('NEEDS_ATTENTION','NEEDS_ATTENTION','IDLE','NEEDS_ATTENTION','IDLE'):
+            self.s.next_retention_sweep = 0
+            self.s.tick()
+            self.assertEqual(self.s.snapshot()['state'], expected)
+
+    def test_inflight_bill_after_revocation_does_not_read_content(self):
+        from unittest.mock import Mock, patch
+        jid = self.s.start_sync({'account_id':'mock-artist-1'}, 'b'*32)['job_id']
+        job = self.store.jobs()[jid]
+        job.update(mode='LIVE', actor_id='historic/actor', actor_build='old-build', adapter_version='unavailable-adapter')
+        self.store.save_job(job, self.s.context(self.s.accounts()[job['account_id']]))
+        transport = Mock()
+        transport.run.return_value = {'id':job['run_id'], 'status':'SUCCEEDED'}
+        transport.items.side_effect = AssertionError('must not read content')
+        transport.dataset.side_effect = AssertionError('must not read dataset')
+        policy = next(copy.deepcopy(p) for p in self.s.policies() if p['operation'] == 'access')
+        policy.update(version=2, permission_state='REVOKED')
+        self.s.save_policy({'policy':policy})
+        self.s.tick()
+        self.assertIn(jid, self.s.failed_ticks)
+        with patch('desktop.service.ApifyTransport', return_value=transport):
+            self.s.finalize_bill({'job_id':jid, 'actual_usd':'0.10', 'evidence_uri':'manual://invoice'})
+        self.assertNotIn(jid, self.s.failed_ticks)
+        self.assertEqual(self.store.jobs()[jid]['state'], 'FAILED')
+        self.assertEqual(self.store.jobs()[jid]['finalized_usd'], '0.10')
+        transport.run.assert_called_once_with(job['run_id'])
+        transport.items.assert_not_called();transport.dataset.assert_not_called()
     def test_revoke_retain_requires_confirmation(self):
         self.sync();p=copy.deepcopy(self.s.policies()[1]);p.update({'version':2,'permission_state':'REVOKED'})
         with self.assertRaisesRegex(ValueError,'CONFIRM'):self.s.save_policy({'policy':p})
@@ -271,6 +418,35 @@ class QtWidgetTests(unittest.TestCase):
     def test_theme_tokens(self):
         from desktop.theme import TOKENS
         for value in TOKENS.values():self.assertIn(value,(ROOT/'DESIGN.md').read_text())
+
+    def test_open_detail_refreshes_redacted_content_without_overlapping_requests(self):
+        from PySide6.QtWidgets import QPlainTextEdit
+        from PySide6.QtCore import QTimer
+        class NoClient:
+            def call(self,*args):return {'rows':[], 'total':0, 'offset':0}
+        window = MainWindow(NoClient(), polling=False)
+        window.selected = lambda kind: {'post_id':'123'}
+        requests = []
+        def call(command, args=None, success=None, failure=None):
+            requests.append((success, failure))
+        window.call = call
+        window.show_detail('posts')
+        requests.pop()[0]({'post_id':'123', 'text':'withdrawn-secret', 'rights_status':'PERMITTED'})
+        dialog = window.dialogs[-1]
+        text = dialog.findChild(QPlainTextEdit)
+        timer = dialog.findChild(QTimer)
+        timer.timeout.emit();timer.timeout.emit()
+        self.assertEqual(len(requests), 1)
+        requests.pop()[0]({'post_id':'123', 'text':None, 'rights_status':'PERMITTED'})
+        self.assertNotIn('withdrawn-secret', text.toPlainText())
+        self.assertIsNone(json.loads(text.toPlainText())['text'])
+        timer.timeout.emit()
+        allowed, denied = requests.pop()
+        denied('permission-revoked')
+        allowed({'post_id':'123', 'text':'stale-secret'})
+        self.assertNotIn('stale-secret', text.toPlainText())
+        self.assertFalse(timer.isActive())
+        window.close();window.pool.waitForDone(1000);wait_ui(30)
 
     def test_media_reauthorization_form_retains_input_and_submits_same_media(self):
         class NoClient:

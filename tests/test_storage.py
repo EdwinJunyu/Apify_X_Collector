@@ -101,6 +101,45 @@ class StorageTests(unittest.TestCase):
                 self.assertEqual(store.current_posts(), {})
                 self.assertFalse(any(e['event_type'] == 'POST_OBSERVATION' for e in store._events))
 
+    def test_stale_and_same_time_conflicting_content_do_not_replace_current_version(self):
+        first = dict(self.post, text='current trusted content', metrics={'likes':10},
+                     observed_at='2026-10-26T12:00:00Z')
+        stale = dict(first, text='private-stale-content-marker', metrics={'likes':1},
+                     observed_at='2026-10-25T12:00:00Z')
+        conflict = dict(first, text='private-conflict-content-marker', metrics={'likes':2})
+        with StorageEngine(self.root) as store:
+            self.ingest(store, [first])
+            before = store.current_posts()
+            result = self.ingest(store, [stale, conflict])
+            self.assertEqual(result['quarantined'], 1)
+            self.assertEqual(result['filtered_stale'], 1)
+            self.assertEqual(result['revised'], 0)
+            self.assertEqual(store.current_posts(), before)
+            self.assertEqual([row['reason'] for row in store.quarantine_records()],
+                             ['CONFLICTING_CONTENT_OBSERVATION'])
+            self.assertEqual(json.loads((self.root / 'deletions/format-floor.json').read_bytes())['min_reader_level'], 11)
+        with StorageEngine(self.root) as store:
+            self.assertEqual(store.current_posts(), before)
+            self.assertEqual(len(store.history(first['post_id'])), 1)
+            newer = dict(first, text='confirmed new content', observed_at='2026-10-27T12:00:00Z')
+            self.assertEqual(self.ingest(store, [newer])['revised'], 1)
+        for path in (self.root / 'journal/segments').glob('*.jsonl'):
+            data = path.read_text(encoding='utf-8')
+            self.assertNotIn('private-stale-content-marker', data)
+            self.assertNotIn('private-conflict-content-marker', data)
+
+    def test_content_conflicts_in_same_batch_do_not_advance_checkpoint(self):
+        first = dict(self.post, observed_at='2026-10-26T12:00:00Z')
+        conflict = dict(first, text='conflicting same observation')
+        with StorageEngine(self.root) as store:
+            with self.assertRaisesRegex(ValueError, 'CHECKPOINT_REQUIRES_CLEAN_BATCH'):
+                self.ingest(store, [first, conflict], checkpoint=self.checkpoint())
+            self.assertEqual(store.current_posts(), {})
+            self.assertIsNone(store.checkpoint(self.account['account_id']))
+            result = self.ingest(store, [first, conflict])
+            self.assertEqual((result['inserted'], result['quarantined']), (1, 1))
+            self.assertEqual(next(iter(store.current_posts().values()))['text'], first['text'])
+
     def test_revision_history_and_observation_does_not_revise(self):
         with StorageEngine(self.root) as store:
             self.ingest(store)
@@ -220,6 +259,53 @@ class StorageTests(unittest.TestCase):
         self.assertEqual(process.returncode, 23)
         with StorageEngine(self.root) as store:
             self.assertEqual(self.ingest(store)['inserted'], 1)
+
+    def test_atomic_journal_temporary_files_are_quarantined_and_erased(self):
+        from unittest.mock import patch
+        from collector.deletion import DeletionManager
+        import collector.storage as module
+        for location in ('pending', 'segment'):
+            root = self.root / location
+            marker = b'private-uncommitted-content'
+            with self.subTest(location=location), StorageEngine(root) as store:
+                self.ingest(store)
+                target = store._path('journal/' + 'a' * 32 + '.pending' if location == 'pending'
+                                     else 'journal/segments/' + 'a' * 32 + '.jsonl')
+                # 模拟写完临时文件、原子发布前的失败；文件名来自真实写入函数。
+                with patch.object(module, 'replace_file', side_effect=OSError('interrupted rename')):
+                    with self.assertRaises(OSError):
+                        module.atomic_bytes(target, marker)
+                self.assertEqual(len(list(target.parent.glob(target.name + '.tmp-*'))), 1)
+            with StorageEngine(root) as store:
+                self.assertEqual(len(store.history(self.post['post_id'])), 1)
+                report = DeletionManager(store).purge(self.post['post_id'], self.context)
+                self.assertTrue(report['active_cleanup_completed'])
+                for folder in ('journal', 'quarantine/orphans'):
+                    for path in (root / folder).rglob('*'):
+                        if path.is_file() and path.name != 'writer.lock':
+                            self.assertNotIn(marker, path.read_bytes())
+
+    def test_atomic_temporary_erasure_failure_never_reports_complete(self):
+        from unittest.mock import patch
+        from collector.deletion import DeletionManager
+        from collector.storage import atomic_bytes
+        import collector.storage as module
+        with StorageEngine(self.root) as store:
+            self.ingest(store)
+            target = store._path('journal/' + 'a' * 32 + '.pending')
+            with patch.object(module, 'replace_file', side_effect=OSError('interrupted rename')):
+                with self.assertRaises(OSError):
+                    atomic_bytes(target, b'private uncommitted content')
+        with StorageEngine(self.root) as store:
+            original = Path.unlink
+            def denied(path, *args, **kwargs):
+                if path.parent == self.root / 'quarantine/orphans' and '.tmp-' in path.name:
+                    raise PermissionError('cannot erase orphan')
+                return original(path, *args, **kwargs)
+            with patch.object(Path, 'unlink', denied):
+                with self.assertRaises(PermissionError):
+                    DeletionManager(store).purge(self.post['post_id'], self.context)
+            self.assertTrue(store.poisoned)
 
     def test_T09_real_process_exit_at_all_commit_boundaries(self):
         for stage in ('AFTER_PENDING', 'AFTER_SEGMENT', 'AFTER_MANIFEST', 'AFTER_POINTER'):

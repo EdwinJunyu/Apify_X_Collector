@@ -119,6 +119,99 @@ class BackupTests(unittest.TestCase):
         relative=next(name for name in snap['files'] if name.endswith('.jsonl'))
         (directory/relative).write_bytes(b'broken')
         with self.assertRaises(ValueError):self.manager.restore(self.row,snap['snapshot_id'],self.parent/'bad')
+
+    def test_missing_current_policies_never_falls_back_to_snapshot_rights(self):
+        snap = self.snapshot()
+        policies = copy.deepcopy(self.f['policies'])
+        for policy in policies:
+            policy['version'] = 2
+            if policy['operation'] == 'retain':
+                policy['permission_state'] = 'REVOKED'
+        self.manager.update_policies(PolicyGate(policies), [dict(self.context, policy_version=2)])
+        (self.vault / 'POLICIES.json').rename(self.vault / 'POLICIES.lost')
+        self.store.close()
+        self.root.rename(self.parent / 'unavailable-original')
+        with StorageEngine(self.parent / 'recovery-control') as control:
+            atomic_bytes(control._path('deletions/store-identity.json'),
+                         canonical({'store_id': self.manager.store_id}))
+            control.backup_disk_probe = self.store.backup_disk_probe
+            recovery = BackupManager(control)
+            target = self.parent / 'must-not-restore-old-rights'
+            with self.assertRaisesRegex(ValueError, 'VAULT_POLICIES_MISSING'):
+                recovery.restore(self.row, snap['snapshot_id'], target)
+            self.assertFalse(target.exists())
+            atomic_bytes(control._path('deletions/backup-registry.json'), canonical([self.row]))
+            self.assertFalse(recovery.propagate_erasure()[0]['completed'])
+
+    def test_invalid_current_policies_blocks_before_copying_snapshot(self):
+        snap = self.snapshot()
+        policy_path = self.vault / 'POLICIES.json'
+        for malformed in (None, {}, {'store_id': self.manager.store_id, 'rights': {}},
+                          {'store_id': self.manager.store_id, 'rights': {'policies': [], 'contexts': [None]}}):
+            with self.subTest(malformed=malformed):
+                policy_path.write_bytes(canonical(malformed))
+                target = self.parent / 'invalid-policies-target'
+                with self.assertRaises(ValueError):
+                    self.manager.restore(self.row, snap['snapshot_id'], target)
+                self.assertFalse(target.exists())
+
+    def test_policy_mirror_failure_does_not_publish_new_snapshot(self):
+        self.manager.update_policies = Mock(return_value=[{
+            'vault_id': self.row['vault_id'], 'completed': False, 'error': 'PermissionError'}])
+        with self.assertRaisesRegex(ValueError, 'VAULT_POLICY_SYNC_FAILED'):
+            self.snapshot()
+        self.assertEqual(self.manager.list_ids(self.row), [])
+
+    def test_empty_vault_without_policy_evidence_can_finish_empty_cleanup(self):
+        self.assertFalse((self.vault / 'POLICIES.json').exists())
+        self.assertTrue(self.manager.propagate_erasure()[0]['completed'])
+
+    def test_scope_cleanup_does_not_delete_later_artifact_at_same_path(self):
+        deletion = DeletionManager(self.store)
+        artifact = self.root / 'exports/review.csv'
+        artifact.write_text(self.post['text'], encoding='utf-8')
+        deletion.track_artifact([self.post['post_id']], 'exports/review.csv')
+        deletion.restrict_scope(self.context, ['METADATA'])
+        self.assertFalse(artifact.exists())
+        artifact.write_text(self.post['post_id'], encoding='utf-8')
+        deletion.track_artifact([self.post['post_id']], 'exports/review.csv')
+        self.assertTrue(deletion.resume_cleanup()['active_cleanup_completed'])
+        self.assertEqual(artifact.read_text(encoding='utf-8'), self.post['post_id'])
+
+    def test_scope_cleanup_receipt_failure_cannot_delete_reused_artifact(self):
+        from unittest.mock import patch
+        deletion = DeletionManager(self.store)
+        artifact = self.root / 'exports/review.csv'
+        artifact.write_text(self.post['text'], encoding='utf-8')
+        deletion.track_artifact([self.post['post_id']], 'exports/review.csv')
+        save_progress = deletion._save_progress
+        def fail_completed_receipt(value):
+            if value['compacted'] and not value['artifact_paths']:
+                raise OSError('receipt write interrupted')
+            return save_progress(value)
+        with patch.object(deletion, '_save_progress', side_effect=fail_completed_receipt):
+            with self.assertRaises(OSError):
+                deletion.restrict_scope(self.context, ['METADATA'])
+        self.assertFalse(artifact.exists())
+        self.assertEqual(deletion._catalog(), [])
+        self.store.close()
+        self.store = StorageEngine(self.root)
+        self.addCleanup(self.store.close)
+        deletion = DeletionManager(self.store)
+        artifact.write_text(self.post['post_id'], encoding='utf-8')
+        # 重新登记必须先消费旧凭据；消费失败时不发布新目录项。
+        with patch.object(deletion, '_save_progress', side_effect=OSError('receipt still unavailable')):
+            with self.assertRaises(OSError):
+                deletion.track_artifact([self.post['post_id']], 'exports/review.csv')
+        self.assertTrue(self.store.poisoned)
+        self.assertEqual(deletion._catalog(), [])
+        self.store.close()
+        self.store = StorageEngine(self.root)
+        self.addCleanup(self.store.close)
+        deletion = DeletionManager(self.store)
+        deletion.track_artifact([self.post['post_id']], 'exports/review.csv')
+        self.assertTrue(deletion.resume_cleanup()['active_cleanup_completed'])
+        self.assertEqual(artifact.read_text(encoding='utf-8'), self.post['post_id'])
     def test_existing_vault_cannot_reinitialize_missing_erasure_ledger(self):
         (self.vault / 'ERASURES.json').rename(self.vault / 'ERASURES.lost')
         with self.assertRaisesRegex(ValueError, 'VAULT_ERASURES_MISSING'):
@@ -550,7 +643,7 @@ class ReleaseTests(unittest.TestCase):
     def test_incompatible_rollback_blocked(self):
         install(self.source,self.root/'installed',with_dependencies=False)
         data=self.root/'data';(data/'deletions').mkdir(parents=True)
-        (data/'deletions/format-floor.json').write_text('{"min_reader_level":11}')
+        (data/'deletions/format-floor.json').write_text('{"min_reader_level":12}')
         with self.assertRaises(ValueError):activate(self.root/'installed','0.0.9',data)
     def test_compatible_activation_preserves_barriers(self):
         install(self.source,self.root/'installed',with_dependencies=False)

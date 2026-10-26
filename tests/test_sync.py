@@ -62,6 +62,68 @@ class SyncTests(unittest.TestCase):
             with self.assertRaises(PermissionError):
                 worker.advance(jid, account, self.context)
 
+    def test_inflight_bill_closes_confirmed_remote_terminal_without_content_access(self):
+        for reading in (False, True):
+            with self.subTest(reading=reading), StorageEngine(self.root / str(reading)) as store:
+                worker = self.worker(store)
+                jid = self.start(worker)
+                if reading:
+                    worker.advance(jid, self.account, self.context)
+                worker.gate = PolicyGate([])
+                account = dict(self.account, current_handle='renamed_artist')
+                with self.assertRaises(PermissionError):
+                    worker.advance(jid, account, self.context)
+                self.fake.dataset = Mock(side_effect=AssertionError('billing must not read Dataset'))
+                self.fake.items = Mock(side_effect=AssertionError('billing must not read content'))
+                worker.finalize_bill(jid, account, self.context, '0.10', 'manual://final-invoice')
+                job = store.jobs()[jid]
+                self.assertEqual(job['state'], 'FAILED')
+                self.assertEqual(job['error_code'], 'CONTENT_IMPORT_STOPPED_AFTER_BILLING')
+                self.assertEqual(job['finalized_usd'], '0.10')
+                self.assertFalse(worker.budget()['blocked'])
+                self.assertEqual(store.current_posts(), {})
+                self.assertIsNone(store.checkpoint(account['account_id']))
+                self.fake.dataset.assert_not_called()
+                self.fake.items.assert_not_called()
+            # 下一个分支独立创建模拟远端，不能继承禁止 Dataset 的 mock。
+            self.fake = FakeTransport(self.rows(3))
+            with StorageEngine(self.root / str(reading)) as store:
+                self.assertEqual(store.jobs()[jid]['finalized_usd'], '0.10')
+
+    def test_inflight_bill_requires_matching_terminal_run_and_valid_evidence(self):
+        with StorageEngine(self.root) as store:
+            worker = self.worker(store)
+            jid = self.start(worker)
+            original = store.jobs()[jid]
+            self.fake.run = Mock()
+            for result in ({'id':'fake-run', 'status':'RUNNING'},
+                           {'id':'another-run', 'status':'SUCCEEDED'}):
+                self.fake.run.return_value = result
+                with self.assertRaises(ValueError):
+                    worker.finalize_bill(jid, self.account, self.context, '0.10', 'manual://invoice')
+                self.assertEqual(store.jobs()[jid], original)
+            self.fake.run.reset_mock()
+            for evidence in ('', '  ', None):
+                with self.assertRaisesRegex(ValueError, 'BILL_NOT_READY'):
+                    worker.finalize_bill(jid, self.account, self.context, '0.10', evidence)
+            with self.assertRaises(ValueError):
+                worker.finalize_bill(jid, self.account, self.context, '-1.00', 'manual://invoice')
+            self.fake.run.assert_not_called()
+            self.assertTrue(worker.budget()['blocked'])
+
+    def test_lower_new_run_cap_does_not_reclassify_historical_bill_as_overspend(self):
+        with StorageEngine(self.root) as store:
+            worker = self.worker(store)
+            jid = self.start(worker)
+            self.finish(worker, jid)
+            reduced = self.worker(store, per_run='0.05')
+            self.assertFalse(reduced.budget()['blocked'])
+            next_id = self.start(reduced)
+            self.assertEqual(store.jobs()[next_id]['reserved_usd'], '0.05')
+            # 真正超过自身历史上限的账单仍必须阻断，不能用提高当前限额掩盖。
+            self.finish(reduced, next_id)
+            self.assertTrue(self.worker(store).budget()['blocked'])
+
     def test_paged_sync_and_checkpoint(self):
         with StorageEngine(self.root) as store:
             worker=self.worker(store);jid=self.start(worker)
@@ -112,6 +174,24 @@ class SyncTests(unittest.TestCase):
             self.assertEqual(store.quarantine_records(), [])
             self.assertEqual(store.checkpoint(self.account['account_id'])['last_success_at'],
                              '2026-10-26T00:00:00Z')
+            self.assertEqual(self.finish(worker, self.start(worker))['state'], 'DONE')
+
+    def test_stale_content_overlap_finishes_without_rolling_back_or_freezing_account(self):
+        current = dict(self.post, text='new trusted version', metrics={'likes':10},
+                       observed_at='2026-10-26T12:00:00Z')
+        self.fake.rows = [dict(self.post, text='old delayed version', metrics={'likes':1},
+                               observed_at='2026-10-25T12:00:00Z')]
+        with StorageEngine(self.root) as store:
+            store.ingest([current], self.account, self.gate, self.context)
+            worker = self.worker(store)
+            job = self.finish(worker, self.start(worker))
+            self.assertEqual(job['state'], 'DONE')
+            self.assertEqual(job['accepted'], 0)
+            self.assertEqual(job['rejected'], 0)
+            self.assertIsNone(job['candidate_cursor'])
+            self.assertEqual(store.quarantine_records(), [])
+            self.assertEqual(store.current_posts()['X:' + current['post_id']]['text'], current['text'])
+            self.assertEqual(len(store.history(current['post_id'])), 1)
             self.assertEqual(self.finish(worker, self.start(worker))['state'], 'DONE')
 
     def test_http_create_errors_preserve_unknown_outcomes(self):

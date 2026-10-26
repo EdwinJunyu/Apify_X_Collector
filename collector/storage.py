@@ -115,9 +115,10 @@ class StorageEngine:
         self.head = None
         try:
             floor = self._path('deletions/format-floor.json')
-            if floor.exists() and strict_loads(floor.read_bytes()).get('min_reader_level', 0) > 10:
+            if floor.exists() and strict_loads(floor.read_bytes()).get('min_reader_level', 0) > 11:
                 raise ValueError('STORE_REQUIRES_NEWER_READER')
-            atomic_bytes(floor, canonical({'min_reader_level': 10, 'schema_version': '1.0'}))
+            # 新增内容观测冲突原因，旧 reader 的严格枚举无法重放，禁止回滚。
+            atomic_bytes(floor, canonical({'min_reader_level': 11, 'schema_version': '1.0'}))
             self.recover()
         except BaseException:
             self.lock.close()
@@ -324,10 +325,11 @@ class StorageEngine:
         except CorruptStore:
             self.poisoned = True
             raise
-        # Only implementation-owned names; never guess that an orphan committed.
-        for directory, pattern in (('journal/segments', r'[a-f0-9]{32}\.jsonl'),
-                                   ('journal/manifests', r'[a-f0-9]{32}\.json'),
-                                   ('journal', r'[a-f0-9]{32}\.pending')):
+        # 原子发布前中断也会遗留完整正文；这些临时文件从未提交，必须一并隔离。
+        # 只匹配本实现生成的名称，不能把未知用户文件当作可删除的写入残留。
+        for directory, pattern in (('journal/segments', r'[a-f0-9]{32}\.jsonl(?:\.tmp-[a-f0-9]{32})?'),
+                                   ('journal/manifests', r'[a-f0-9]{32}\.json(?:\.tmp-[a-f0-9]{32})?'),
+                                   ('journal', r'(?:[a-f0-9]{32}\.pending(?:\.tmp-[a-f0-9]{32})?|CURRENT\.json\.tmp-[a-f0-9]{32})')):
             for path in (self.root / directory).iterdir():
                 relative = path.relative_to(self.root).as_posix()
                 if re.fullmatch(pattern, path.name) and relative not in referenced:
@@ -430,7 +432,7 @@ class StorageEngine:
         events = []
         working = copy.deepcopy(self._posts)
         counts = {'inserted': 0, 'revised': 0, 'duplicate': 0, 'quarantined': 0,
-                  'filtered_deleted': 0}
+                  'filtered_deleted': 0, 'filtered_stale': 0}
         for row in records:
             try:
                 if isinstance(row, dict) and row.get('text') is not None and 'TEXT' not in policy['content_scope']:
@@ -464,6 +466,14 @@ class StorageEngine:
                                 latest.update(copy.deepcopy(observed))
                                 working[key] = latest
                         continue
+                    # Dataset 迟到或重读可能带回旧正文；不能把旧观测当作最新修订。
+                    # 已知较旧观测安全忽略；同时刻的冲突才需要人工判定。
+                    observed_at, previous_at = parse_utc(post['observed_at']), parse_utc(previous['observed_at'])
+                    if observed_at < previous_at:
+                        counts['filtered_stale'] += 1
+                        continue
+                    if observed_at == previous_at:
+                        raise ValidationError('CONFLICTING_CONTENT_OBSERVATION')
                     post['version_number'] = previous['version_number'] + 1
                     post['first_seen_at'] = previous['first_seen_at']
                     counts['revised'] += 1

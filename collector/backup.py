@@ -154,6 +154,27 @@ class BackupManager:
             files[relative] = {'bytes': target.stat().st_size, 'sha256': sha_file(target)}
         return files, total
 
+    def _current_rights(self, row):
+        from .policy import PolicyGate
+        from .validation import check
+        path = checked_path(self._vault(row) / 'POLICIES.json')
+        # 旧快照的许可不能证明其后未撤权；当前凭据缺失时禁止回退。
+        if not path.exists():
+            raise ValueError('VAULT_POLICIES_MISSING')
+        value = strict_loads(path.read_bytes())
+        if not isinstance(value, dict) or set(value) != {'store_id', 'rights'}:
+            raise ValueError('INVALID_VAULT_POLICIES')
+        if value['store_id'] != self.store_id:
+            raise ValueError('VAULT_POLICY_OWNER_MISMATCH')
+        rights = value['rights']
+        if (not isinstance(rights, dict) or set(rights) != {'policies', 'contexts'} or
+                not isinstance(rights['policies'], list) or not isinstance(rights['contexts'], list)):
+            raise ValueError('INVALID_VAULT_POLICIES')
+        PolicyGate(rights['policies'])
+        for context in rights['contexts']:
+            check('context', context)
+        return value
+
     def _relatives(self, engine):
         paths = set()
         current = engine.head
@@ -212,7 +233,9 @@ class BackupManager:
         DeletionManager(self.store).resume_cleanup()
         self._ledger(row)
         # Every retained source must have matching valid retention evidence.
-        self.update_policies(gate, contexts or [])
+        synced = self.update_policies(gate, contexts or [])
+        if not any(item['vault_id'] == row['vault_id'] and item['completed'] for item in synced):
+            raise ValueError('VAULT_POLICY_SYNC_FAILED')
         known = {}
         for context in contexts or []:
             known[context['source_id']] = context
@@ -308,6 +331,8 @@ class BackupManager:
         if (target.exists() and any(target.iterdir())) or target.is_relative_to(vault) or target.is_relative_to(self.store.root.resolve()):
             raise ValueError('RESTORE_REQUIRES_NEW_EMPTY_ROOT')
         ledger = self._ledger(row)
+        current_rights = self._current_rights(row)
+        manifest = dict(manifest, rights=current_rights['rights'])
         secure_path(target, directory=True)
         restore_token = uuid.uuid4().hex
         atomic_bytes(target / '.restore-in-progress.json', canonical({'token': restore_token, 'store_id': self.store_id, 'snapshot_id': snapshot_id}))
@@ -327,12 +352,6 @@ class BackupManager:
             self._merge_accounting(restored, row)
             self._prepare_erasures(restored)
             DeletionManager(restored).resume_cleanup()
-            policy_file = vault / 'POLICIES.json'
-            if policy_file.exists():
-                current_rights = strict_loads(policy_file.read_bytes())
-                if current_rights['store_id'] != self.store_id:
-                    raise ValueError('VAULT_POLICY_OWNER_MISMATCH')
-                manifest = dict(manifest, rights=current_rights['rights'])
             self._filter_restored(restored, manifest)
             settings_rows = restored.admin_events('SETTINGS_STATE')
             if settings_rows:
@@ -488,13 +507,12 @@ class BackupManager:
                 receipt_path = vault / 'erasure-receipts.json'
                 receipts = strict_loads(receipt_path.read_bytes()) if receipt_path.exists() else {}
                 from .validation import digest
-                rights_file = vault / 'POLICIES.json'
-                current_rights = strict_loads(rights_file.read_bytes()) if rights_file.exists() else None
-                if current_rights is not None and current_rights['store_id'] != self.store_id:
-                    raise ValueError('VAULT_POLICY_OWNER_MISMATCH')
+                snapshot_ids = self.list_ids(row)
+                # 尚未创建快照的新 vault 可以没有凭据；既有快照必须按当前凭据清理。
+                current_rights = self._current_rights(row) if snapshot_ids else None
                 ledger_hash = digest({'erasures': ledger, 'policies': current_rights})
                 processed, pending = 0, False
-                for snapshot_id in self.list_ids(row):
+                for snapshot_id in snapshot_ids:
                     revision = self._index(row)[snapshot_id]
                     if receipts.get(snapshot_id) == [revision, ledger_hash]:
                         continue

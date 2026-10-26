@@ -24,6 +24,7 @@ class DeletionManager:
 
     def track_artifact(self, post_ids, relative):
         # Only derived artifacts inside known local application directories.
+        self.store._ready()
         path = self.store._path(relative)
         if relative.split('/')[0] not in ('raw', 'exports', 'snapshots') or not path.is_file():
             raise ValueError('INVALID_ARTIFACT')
@@ -33,6 +34,16 @@ class DeletionManager:
         record = {'post_ids': post_ids, 'path': relative,
                   'hash': hashlib.sha256(path.read_bytes()).hexdigest()}
         catalog = self._catalog()
+        progress = self._progress()
+        if relative in progress['artifact_paths'] and not any(item['path'] == relative for item in catalog):
+            # 旧文件及目录项已清理，但最终凭据可能写入中断。登记同路径新文件前，
+            # 先耐久消费旧目标；否则下一次恢复会把新文件误认为旧删除任务。
+            progress['artifact_paths'].remove(relative)
+            try:
+                self._save_progress(progress)
+            except BaseException:
+                self.store.poisoned = True
+                raise
         catalog.append(record)
         atomic_bytes(self.store._path('deletions/artifacts.json'), canonical(catalog))
 
@@ -249,6 +260,9 @@ class DeletionManager:
                     store._path(path.relative_to(store.root).as_posix()).unlink()
             pending = self._clean_artifacts(erased, set(progress['artifact_paths']))
             known = {item['path'] for item in self._catalog()}
+            # 已清理的路径不再是永久删除目标；后续可在同一路径登记获准的新导出。
+            # 仍未删成（例如 hash 改变）的文件保留目标，下一轮继续报告 pending。
+            progress['artifact_paths'] = sorted(set(progress['artifact_paths']) & known)
             for folder in ('raw', 'exports', 'snapshots'):
                 for path in (store.root / folder).rglob('*'):
                     if path.is_file() and path.relative_to(store.root).as_posix() not in known:

@@ -9,6 +9,7 @@
         "MEDIA_RETENTION_DENIED",
         "TOMBSTONED",
         "POST_IDENTITY_CONFLICT",
+        "CONFLICTING_CONTENT_OBSERVATION",
         "FIELD_TYPE",
         "FIELD_CONST",
         "FIELD_ENUM",

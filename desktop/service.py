@@ -110,6 +110,13 @@ class WorkerService:
                 review = reviews.get((post['post_id'], post['version_number'], post['content_hash']), {})
                 post['review_status'] = review.get('status', 'STAGING')
                 post['content_rating'] = review.get('category', 'UNKNOWN')
+                if post['review_status'] == 'PUBLISHABLE':
+                    # 审核证据可以保留，但历史发布许可不能覆盖当前撤销或到期状态。
+                    try:
+                        self.gate().require(context['source_id'], 'redistribute', context['purpose'],
+                                            context['policy_id'], context['policy_version'])
+                    except PermissionError:
+                        post['review_status'] = 'REVIEWED'
             except PermissionError:
                 # Only safe identity/status shown, no restricted text or URL.
                 post = {'post_id': post['post_id'], 'account_id': post['account_id'],
@@ -175,9 +182,13 @@ class WorkerService:
         if time.monotonic() >= self.next_retention_sweep:
             self.next_retention_sweep = time.monotonic() + 60
             try:
-                self.cleanup()
+                cleanup = self.cleanup()
+                if not cleanup['active_cleanup_completed'] or cleanup['pending']:
+                    self.failed_ticks.add('RETENTION_CLEANUP_PENDING')
+                else:
+                    self.failed_ticks.discard('RETENTION_CLEANUP_PENDING')
                 receipts = self.backups.propagate_erasure() if self.backups.registry() else []
-                if any(not row['completed'] for row in receipts):
+                if any(not row['completed'] for row in receipts + cleanup['backup_policy_sync']):
                     self.failed_ticks.add('BACKUP_ERASURE_PENDING')
                 else:
                     self.failed_ticks.discard('BACKUP_ERASURE_PENDING')
@@ -391,12 +402,19 @@ class WorkerService:
         for job in self.store.jobs().values():
             if job['state'] not in TERMINAL and settings['mode'] != self.settings['mode']:
                 raise ValueError('FINISH_JOB_BEFORE_MODE_CHANGE')
+        schedule_disabled = self.settings['schedule_enabled'] and any(
+            settings[key] != self.settings[key] for key in ('mode', 'actor_id', 'actor_build'))
+        if schedule_disabled:
+            # 模式或 Actor 变化使旧的手动验收失效；先持久化关闭，再触碰系统计划。
+            settings['schedule_enabled'] = False
         if settings['schedule_enabled'] and (settings['schedule_local_time'],settings['timezone']) != (self.settings['schedule_local_time'],self.settings['timezone']):
             self.task_backend.register(settings)
         self.store.save_admin('SETTINGS_STATE', settings, ADMIN)
         self.settings = settings
         self.apply_quota()
-        return {'saved': True}
+        if schedule_disabled:
+            self.task_backend.disable()
+        return {'saved': True, 'schedule_disabled': bool(schedule_disabled)}
 
     def pause(self, paused):
         state = copy.deepcopy(self.settings)
@@ -430,6 +448,8 @@ class WorkerService:
             if len(observed_accounts) > self.approved_stage():
                 raise PermissionError('SEEDING_STAGE_APPROVAL_REQUIRED')
         runtime = self.runtime(account)
+        if args.get('scheduled') and not self.manual_sync_tested(account, runtime):
+            raise ValueError('MANUAL_SYNC_TEST_REQUIRED')
         approval = {'actor_id': self.settings['actor_id'], 'build': self.settings['actor_build'],
             'model': 'PAY_PER_EVENT', 'evidence_uri': self.settings['price_evidence_uri'],
             'valid_until': self.settings['price_valid_until'], 'minimum_usd': self.settings['price_minimum_usd'],
@@ -487,20 +507,30 @@ class WorkerService:
         return {'job_id': jid}
 
     def reconcile(self, args):
-        worker, account, context = self.coordinator(args['job_id'], accounting_only=args.get('not_created') is True)
+        # 人工核对已有 Run 也只需要账务身份和 Run API，不依赖旧 Dataset 映射。
+        worker, account, context = self.coordinator(args['job_id'], accounting_only=True)
         if args.get('not_created') is True:
             if args.get('run_id'):
                 raise ValueError('NOT_CREATED_MUST_NOT_HAVE_RUN_ID')
             worker.confirm_not_created(args['job_id'], account, context,
                                        args['evidence_uri'], args.get('confirmation'))
         else:
+            if worker.transport is None:
+                worker.transport = ApifyTransport(self.read_token(), enabled=True)
             worker.reconcile_run(args['job_id'], account, context, args['run_id'], args['evidence_uri'])
         self.failed_ticks.discard(args['job_id'])
         return {'reconciled': True}
 
     def finalize_bill(self, args):
+        job = self.store.jobs()[args['job_id']]
+        # 在途任务需查询原 Run 已结束；既有终态账单仍可无 Token 登记。
+        remote_check = job['state'] in ('RUNNING', 'READING') and job['run_id'] is not None
         worker, account, context = self.coordinator(args['job_id'], accounting_only=True)
+        if remote_check and worker.transport is None:
+            # 核对负债只需要 Run API；即使旧内容适配器已不可用也可安全结算。
+            worker.transport = ApifyTransport(self.read_token(), enabled=True)
         worker.finalize_bill(args['job_id'], account, context, args['actual_usd'], args['evidence_uri'])
+        self.failed_ticks.discard(args['job_id'])
         return {'finalized': True}
 
     def media_manager(self):
@@ -655,6 +685,20 @@ class WorkerService:
             raise ValueError('CONFIRM_RESTORE_TARGET')
         return self.backups.restore(self.backup_row(args), args['snapshot_id'], args['target'])
 
+    def manual_sync_tested(self, account, runtime):
+        scheduled_requests = {entry['request_id'] for state in self.store.admin_events('SCHEDULE_STATE')
+                              for entry in state['entries']}
+        # 每次计划创建前也复核，避免启用后新增账号或改变映射绕过手动验收。
+        for job in self.store.jobs().values():
+            if (job['account_id'] == account['account_id'] and job['state'] == 'DONE' and
+                    job['account_hash'] == digest(account) and job['context_hash'] == digest(self.context(account)) and
+                    job.get('mode') == self.settings['mode'] and
+                    job['actor_id'] == runtime.adapter.actor_id and job['actor_build'] == runtime.adapter.build and
+                    job.get('adapter_version') == runtime.adapter.adapter_version and
+                    job.get('command_id') not in scheduled_requests):
+                return True
+        return False
+
     def enable_schedule(self, args):
         if args.get('confirmation') != 'ENABLE':
             raise ValueError('EXPLICIT_SCHEDULE_CONFIRMATION_REQUIRED')
@@ -662,13 +706,9 @@ class WorkerService:
         for account in self.accounts().values():
             if account['active_status'] == 'ACTIVE':
                 accounts.append(account)
-                self.runtime(account)._permit(account, self.context(account))
-                tested = False
-                for job in self.store.jobs().values():
-                    if (job['account_id'] == account['account_id'] and job['state'] == 'DONE' and job['account_hash'] == digest(account) and
-                            job['actor_id'] == ('offline-synthetic' if self.settings['mode']=='OFFLINE' else self.settings['actor_id'])):
-                        tested = True
-                if not tested:
+                runtime = self.runtime(account)
+                runtime._permit(account, self.context(account))
+                if not self.manual_sync_tested(account, runtime):
                     raise ValueError('MANUAL_SYNC_TEST_REQUIRED')
         if not accounts or len(accounts) > 150:
             raise ValueError('SCHEDULE_REQUIRES_1_TO_150_ACTIVE_ACCOUNTS')

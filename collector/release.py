@@ -14,7 +14,7 @@ from .validation import canonical, strict_loads, utc_now
 from .backup import sha_file
 
 VERSION = '0.0.9'
-READER_LEVEL = 10
+READER_LEVEL = 11
 EXCLUDE = {'.git', '.hg', '.svn', '__pycache__', '.venv', 'data', 'output', 'node_modules', 'requests', 'responses', 'sync-demo-data', 'media-demo-data'}
 
 

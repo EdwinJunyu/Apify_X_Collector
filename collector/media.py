@@ -96,7 +96,9 @@ class MediaManager:
             stream = self.transport.stream(task['source_url'])
             try:
                 header = next(stream)
-                if header['length'] is not None and header['length'] > self.max_file:
+                # 连完整批次都放不下的文件是永久超限；不能无限等待“下一批”。
+                file_limit = min(self.max_file, self.batch_limit) if remaining_batch is not None else self.max_file
+                if header['length'] is not None and header['length'] > file_limit:
                     raise MediaError('OVERSIZE')
                 if remaining_batch is not None and header['length'] is not None and header['length'] > remaining_batch:
                     raise MediaError('BATCH_LIMIT')
@@ -107,7 +109,7 @@ class MediaManager:
                         if not isinstance(chunk, bytes):
                             raise MediaError('NETWORK_ERROR')
                         size += len(chunk)
-                        if size > self.max_file:
+                        if size > file_limit:
                             raise MediaError('OVERSIZE')
                         if remaining_batch is not None and size > remaining_batch:
                             raise MediaError('BATCH_LIMIT')

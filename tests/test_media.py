@@ -111,6 +111,27 @@ class MediaTests(unittest.TestCase):
                 self.assertEqual(manager.process_batch(self.context)[0]['state'], 'DOWNLOADED')
                 self.assertEqual(store.media_tasks()[second]['attempts'], 1)
 
+    def test_file_larger_than_entire_batch_does_not_block_queue(self):
+        for known_length in (True, False):
+            with self.subTest(known_length=known_length), StorageEngine(self.root / str(known_length)) as store:
+                manager = self.setup_media(store, max_file=len(PNG) * 3, batch_limit=len(PNG))
+                class SizedMedia:
+                    calls = 0
+                    def stream(self, url):
+                        self.calls += 1
+                        payload = PNG * 2 if self.calls == 1 else PNG
+                        yield {'length':len(payload) if known_length else None, 'mime':'image/png'}
+                        yield payload
+                manager.transport = SizedMedia()
+                first, second = self.enqueue(manager), self.enqueue(manager)
+                results = manager.process_batch(self.context)
+                self.assertEqual([row['state'] for row in results], ['FAILED', 'DOWNLOADED'])
+                self.assertEqual(store.media_tasks()[first]['error_code'], 'OVERSIZE')
+                self.assertEqual(store.media_tasks()[second]['file_size'], len(PNG))
+                manager.process_batch(self.context)
+                self.assertEqual(manager.transport.calls, 2)
+                self.assertFalse(list((store.root / 'media').glob('*.part')))
+
     def test_reauthorization_preserves_file_and_authorization_history(self):
         with StorageEngine(self.root) as store:
             manager = self.setup_media(store)

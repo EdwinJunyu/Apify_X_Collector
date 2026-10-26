@@ -629,8 +629,11 @@ class MainWindow(QMainWindow):
     def bill(self):
         row = self.selected('jobs')
         if row:
+            explanation = ('在途任务会先核对远端已结束；登记后停止该任务的剩余内容导入，并保留已保存内容。'
+                           '远端仍运行或未知 Run 不能结算。') if row.get('state') in ('RUNNING', 'READING') else ''
             self.form('登记最终账单', [('actual_usd', '实际 USD（十进制字符串）', 'text', ''),
-                ('evidence_uri', '最终账单证据 URI', 'text', '')], 'finalize_bill', lambda values: dict(values, job_id=row['job_id']))
+                ('evidence_uri', '最终账单证据 URI', 'text', '')], 'finalize_bill',
+                lambda values: dict(values, job_id=row['job_id']), explanation)
 
     def review(self):
         row = self.selected('posts')
@@ -726,14 +729,24 @@ class MainWindow(QMainWindow):
             if kind == 'posts':
                 guard = QTimer(dialog)
                 guard.setInterval(2000)
+                checking = {'pending': False, 'denied': False}
                 def denied(error):
                     from shiboken6 import isValid
+                    checking.update(pending=False, denied=True)
                     if isValid(text):
                         text.setPlainText('正文已隐藏：保存许可或帖子状态发生变化。')
                     guard.stop()
+                def refreshed(value):
+                    from shiboken6 import isValid
+                    checking['pending'] = False
+                    if isValid(text) and dialog.isVisible() and not checking['denied']:
+                        # TEXT 收窄为仅元数据仍是成功响应，必须同步移除已显示的旧正文。
+                        text.setPlainText(json.dumps(value, ensure_ascii=False, indent=2))
                 def recheck():
                     if dialog.isVisible():
-                        self.call('post_detail', {'post_id': row['post_id']}, failure=denied)
+                        if not checking['pending'] and not checking['denied']:
+                            checking['pending'] = True
+                            self.call('post_detail', {'post_id': row['post_id']}, refreshed, denied)
                     else:
                         guard.stop()
                 guard.timeout.connect(recheck)
